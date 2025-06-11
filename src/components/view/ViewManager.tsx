@@ -13,6 +13,12 @@ export function ViewManager({ category }: ViewManagerProps) {
   const [selectedPerson, setSelectedPerson] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedPeriod, setSelectedPeriod] = useState<'1-15' | '16-31' | '1-10' | '11-20' | '21-31'>('1-15');
+  
+  // New state for village date range
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedMonthForVillage, setSelectedMonthForVillage] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
+  const [startDate, setStartDate] = useState('1');
+  const [endDate, setEndDate] = useState('15');
 
   const people = data.people.filter(p => p.category === category);
 
@@ -26,16 +32,15 @@ export function ViewManager({ category }: ViewManagerProps) {
         return data.villageEntries.filter(entry => {
           const matchesPerson = !selectedPerson || entry.personId === selectedPerson;
           const entryDate = new Date(entry.date);
-          const day = entryDate.getDate();
+          const entryYear = entryDate.getFullYear();
+          const entryMonth = entryDate.getMonth() + 1;
+          const entryDay = entryDate.getDate();
           
-          let matchesPeriod = true;
-          if (selectedPeriod === '1-15') {
-            matchesPeriod = day >= 1 && day <= 15;
-          } else if (selectedPeriod === '16-31') {
-            matchesPeriod = day >= 16 && day <= 31;
-          }
+          const matchesYear = entryYear === parseInt(selectedYear);
+          const matchesMonth = entryMonth === parseInt(selectedMonthForVillage);
+          const matchesDateRange = entryDay >= parseInt(startDate) && entryDay <= parseInt(endDate);
           
-          return matchesPerson && matchesPeriod;
+          return matchesPerson && matchesYear && matchesMonth && matchesDateRange;
         });
 
       case 'city':
@@ -231,6 +236,35 @@ export function ViewManager({ category }: ViewManagerProps) {
     });
   };
 
+  // Generate year options (current year ± 5 years)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [];
+  for (let i = currentYear - 5; i <= currentYear + 5; i++) {
+    yearOptions.push(i.toString());
+  }
+
+  // Generate month options
+  const monthOptions = [
+    { value: '01', label: 'January' },
+    { value: '02', label: 'February' },
+    { value: '03', label: 'March' },
+    { value: '04', label: 'April' },
+    { value: '05', label: 'May' },
+    { value: '06', label: 'June' },
+    { value: '07', label: 'July' },
+    { value: '08', label: 'August' },
+    { value: '09', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' }
+  ];
+
+  // Generate day options
+  const dayOptions = [];
+  for (let i = 1; i <= 31; i++) {
+    dayOptions.push(i.toString());
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -278,7 +312,7 @@ export function ViewManager({ category }: ViewManagerProps) {
           <h3 className="text-lg font-medium text-gray-900">Filters</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <User className="w-4 h-4 inline mr-1" />
@@ -298,6 +332,76 @@ export function ViewManager({ category }: ViewManagerProps) {
             </select>
           </div>
 
+          {category === 'village' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Calendar className="w-4 h-4 inline mr-1" />
+                  Year
+                </label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {yearOptions.map(year => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Month
+                </label>
+                <select
+                  value={selectedMonthForVillage}
+                  onChange={(e) => setSelectedMonthForVillage(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {monthOptions.map(month => (
+                    <option key={month.value} value={month.value}>
+                      {month.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Start Date
+                </label>
+                <select
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {dayOptions.map(day => (
+                    <option key={day} value={day}>
+                      {day}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  End Date
+                </label>
+                <select
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {dayOptions.map(day => (
+                    <option key={day} value={day}>
+                      {day}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
           {category === 'city' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -313,7 +417,7 @@ export function ViewManager({ category }: ViewManagerProps) {
             </div>
           )}
 
-          {(category === 'village' || category === 'dairy') && (
+          {category === 'dairy' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Calendar className="w-4 h-4 inline mr-1" />
@@ -324,18 +428,9 @@ export function ViewManager({ category }: ViewManagerProps) {
                 onChange={(e) => setSelectedPeriod(e.target.value as any)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                {category === 'village' ? (
-                  <>
-                    <option value="1-15">1st - 15th</option>
-                    <option value="16-31">16th - 31st</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="1-10">1st - 10th</option>
-                    <option value="11-20">11th - 20th</option>
-                    <option value="21-31">21st - 31st</option>
-                  </>
-                )}
+                <option value="1-10">1st - 10th</option>
+                <option value="11-20">11th - 20th</option>
+                <option value="21-31">21st - 31st</option>
               </select>
             </div>
           )}

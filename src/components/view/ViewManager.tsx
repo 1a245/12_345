@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Filter, Download, Calendar, User, FileText, Calculator } from 'lucide-react';
+import { Filter, Download, Calendar, User, FileText, Calculator, Share2, FileDown } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { LedgerView } from './LedgerView';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface ViewManagerProps {
   category: 'village' | 'city' | 'dairy';
@@ -19,6 +21,10 @@ export function ViewManager({ category }: ViewManagerProps) {
   const [selectedMonthForVillage, setSelectedMonthForVillage] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
   const [startDate, setStartDate] = useState('1');
   const [endDate, setEndDate] = useState('15');
+
+  // New state for dairy date selection
+  const [selectedYearForDairy, setSelectedYearForDairy] = useState(new Date().getFullYear().toString());
+  const [selectedMonthForDairy, setSelectedMonthForDairy] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
 
   const people = data.people.filter(p => p.category === category);
 
@@ -54,18 +60,25 @@ export function ViewManager({ category }: ViewManagerProps) {
         return data.dairyEntries.filter(entry => {
           const matchesPerson = !selectedPerson || entry.personId === selectedPerson;
           const entryDate = new Date(entry.date);
-          const day = entryDate.getDate();
+          const entryYear = entryDate.getFullYear();
+          const entryMonth = entryDate.getMonth() + 1;
+          const entryDay = entryDate.getDate();
+          
+          const matchesYear = entryYear === parseInt(selectedYearForDairy);
+          const matchesMonth = entryMonth === parseInt(selectedMonthForDairy);
           
           let matchesPeriod = true;
           if (selectedPeriod === '1-10') {
-            matchesPeriod = day >= 1 && day <= 10;
+            matchesPeriod = entryDay >= 1 && entryDay <= 10;
           } else if (selectedPeriod === '11-20') {
-            matchesPeriod = day >= 11 && day <= 20;
+            matchesPeriod = entryDay >= 11 && entryDay <= 20;
           } else if (selectedPeriod === '21-31') {
-            matchesPeriod = day >= 21 && day <= 31;
+            // Get last day of the month
+            const lastDay = new Date(entryYear, entryMonth, 0).getDate();
+            matchesPeriod = entryDay >= 21 && entryDay <= lastDay;
           }
           
-          return matchesPerson && matchesPeriod;
+          return matchesPerson && matchesYear && matchesMonth && matchesPeriod;
         });
 
       default:
@@ -105,17 +118,153 @@ export function ViewManager({ category }: ViewManagerProps) {
 
   const { totalAmount, totalEntries } = calculateTotals();
 
+  const getDateRangeString = () => {
+    switch (category) {
+      case 'village':
+        return `${selectedYear}-${selectedMonthForVillage}-${startDate.padStart(2, '0')}_to_${selectedYear}-${selectedMonthForVillage}-${endDate.padStart(2, '0')}`;
+      case 'city':
+        return selectedMonth;
+      case 'dairy':
+        let periodText = '';
+        if (selectedPeriod === '1-10') periodText = '01-10';
+        else if (selectedPeriod === '11-20') periodText = '11-20';
+        else periodText = '21-31';
+        return `${selectedYearForDairy}-${selectedMonthForDairy}-${periodText}`;
+      default:
+        return '';
+    }
+  };
+
+  const getSelectedPersonName = () => {
+    if (!selectedPerson) return 'All_Customers';
+    const person = people.find(p => p.id === selectedPerson);
+    return person ? person.name.replace(/\s+/g, '_') : 'Unknown_Customer';
+  };
+
+  const generateFileName = (type: 'csv' | 'pdf') => {
+    const customerName = getSelectedPersonName();
+    const dateRange = getDateRangeString();
+    const extension = type === 'csv' ? 'csv' : 'pdf';
+    return `${customerName}_${category}_${dateRange}.${extension}`;
+  };
+
   const handleExport = () => {
     const csvContent = generateCSV();
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `${category}-data-${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', generateFileName('csv'));
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handlePDFDownload = () => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(20);
+    doc.text(`${category.toUpperCase()} DATA REPORT`, 20, 20);
+    
+    // Add filters info
+    doc.setFontSize(12);
+    const customerName = getSelectedPersonName().replace(/_/g, ' ');
+    const dateRange = getDateRangeString().replace(/_/g, ' ');
+    doc.text(`Customer: ${customerName}`, 20, 35);
+    doc.text(`Date Range: ${dateRange}`, 20, 45);
+    doc.text(`Total Entries: ${totalEntries}`, 20, 55);
+    doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`, 20, 65);
+
+    // Prepare table data
+    let headers: string[] = [];
+    let rows: any[][] = [];
+
+    switch (category) {
+      case 'village':
+        headers = ['Date', 'Person', 'M/Milk', 'M/Fat', 'E/Milk', 'E/Fat', 'Amount'];
+        rows = filteredData.map((entry: any) => [
+          entry.date,
+          entry.personName,
+          entry.mMilk.toFixed(2),
+          entry.mFat.toFixed(2),
+          entry.eMilk.toFixed(2),
+          entry.eFat.toFixed(2),
+          `₹${entry.amount.toFixed(2)}`
+        ]);
+        break;
+
+      case 'city':
+        headers = ['Date', 'Person', 'Value', 'Rate', 'Amount'];
+        rows = filteredData.map((entry: any) => [
+          entry.date,
+          entry.personName,
+          entry.value.toFixed(2),
+          entry.rate.toFixed(2),
+          `₹${entry.amount.toFixed(2)}`
+        ]);
+        break;
+
+      case 'dairy':
+        headers = ['Date', 'Person', 'Session', 'Milk', 'Fat', 'Total Amount'];
+        rows = filteredData.map((entry: any) => [
+          entry.date,
+          entry.personName,
+          entry.session,
+          entry.milk.toFixed(2),
+          entry.fat.toFixed(2),
+          `₹${entry.totalAmount.toFixed(2)}`
+        ]);
+        break;
+    }
+
+    // Add table
+    autoTable(doc, {
+      head: [headers],
+      body: rows,
+      startY: 75,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 139, 202] },
+    });
+
+    // Save PDF
+    doc.save(generateFileName('pdf'));
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        // Generate CSV content for sharing
+        const csvContent = generateCSV();
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const file = new File([blob], generateFileName('csv'), { type: 'text/csv' });
+
+        await navigator.share({
+          title: `${category.toUpperCase()} Data Report`,
+          text: `Data report for ${getSelectedPersonName().replace(/_/g, ' ')} - ${getDateRangeString().replace(/_/g, ' ')}`,
+          files: [file]
+        });
+      } catch (error) {
+        console.error('Error sharing:', error);
+        // Fallback to download
+        handleExport();
+      }
+    } else {
+      // Fallback for browsers that don't support Web Share API
+      const csvContent = generateCSV();
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => {
+          alert('Download link copied to clipboard!');
+        });
+      } else {
+        // Final fallback - just download
+        handleExport();
+      }
+    }
   };
 
   const generateCSV = () => {
@@ -138,9 +287,9 @@ export function ViewManager({ category }: ViewManagerProps) {
         break;
 
       case 'dairy':
-        headers = 'Date,Person,Session,Milk,Fat,Meter,Rate,FatKg,MeterKg,Fat Amount,Meter Amount,Total Amount\n';
+        headers = 'Date,Person,Session,Milk,Fat,Total Amount\n';
         rows = filteredData.map((entry: any) => 
-          `${entry.date},${entry.personName},${entry.session},${entry.milk},${entry.fat},${entry.meter},${entry.rate},${entry.fatKg},${entry.meterKg},${entry.fatAmount},${entry.meterAmount},${entry.totalAmount}`
+          `${entry.date},${entry.personName},${entry.session},${entry.milk},${entry.fat},${entry.totalAmount}`
         ).join('\n');
         break;
     }
@@ -296,13 +445,29 @@ export function ViewManager({ category }: ViewManagerProps) {
               Ledger View
             </button>
           </div>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Export Data
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              CSV
+            </button>
+            <button
+              onClick={handlePDFDownload}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <FileDown className="w-4 h-4" />
+              PDF
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Share2 className="w-4 h-4" />
+              Share
+            </button>
+          </div>
         </div>
       </div>
 
@@ -418,21 +583,55 @@ export function ViewManager({ category }: ViewManagerProps) {
           )}
 
           {category === 'dairy' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="w-4 h-4 inline mr-1" />
-                Period
-              </label>
-              <select
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value as any)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="1-10">1st - 10th</option>
-                <option value="11-20">11th - 20th</option>
-                <option value="21-31">21st - 31st</option>
-              </select>
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Calendar className="w-4 h-4 inline mr-1" />
+                  Year
+                </label>
+                <select
+                  value={selectedYearForDairy}
+                  onChange={(e) => setSelectedYearForDairy(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {yearOptions.map(year => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Month
+                </label>
+                <select
+                  value={selectedMonthForDairy}
+                  onChange={(e) => setSelectedMonthForDairy(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {monthOptions.map(month => (
+                    <option key={month.value} value={month.value}>
+                      {month.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Period
+                </label>
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="1-10">1st - 10th</option>
+                  <option value="11-20">11th - 20th</option>
+                  <option value="21-31">21st - Last Day</option>
+                </select>
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
+import { AndroidOptimized } from './components/AndroidOptimized';
 import { Login } from './components/Login';
 import { TabNavigation } from './components/TabNavigation';
 import { SettingsManager } from './components/settings/SettingsManager';
@@ -53,18 +54,20 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <TabNavigation
-        activeMainTab={activeMainTab}
-        activeSubTab={activeSubTab}
-        onMainTabChange={setActiveMainTab}
-        onSubTabChange={setActiveSubTab}
-      />
-      
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {renderTabContent()}
-      </main>
-    </div>
+    <AndroidOptimized>
+      <div className="min-h-screen bg-gray-50">
+        <TabNavigation
+          activeMainTab={activeMainTab}
+          activeSubTab={activeSubTab}
+          onMainTabChange={setActiveMainTab}
+          onSubTabChange={setActiveSubTab}
+        />
+        
+        <main className="max-w-7xl mx-auto px-4 py-8">
+          {renderTabContent()}
+        </main>
+      </div>
+    </AndroidOptimized>
   );
 }
 

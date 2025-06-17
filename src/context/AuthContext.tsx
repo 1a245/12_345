@@ -5,16 +5,17 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (password: string) => boolean;
   logout: () => void;
+  changePassword: (currentPassword: string, newPassword: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useLocalStorage('isAuthenticated', false);
-  const defaultPassword = 'admin123';
+  const [storedPassword, setStoredPassword] = useLocalStorage('userPassword', 'admin123');
 
   const login = (password: string): boolean => {
-    if (password === defaultPassword) {
+    if (password === storedPassword) {
       setIsAuthenticated(true);
       return true;
     }
@@ -25,8 +26,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(false);
   };
 
+  const changePassword = (currentPassword: string, newPassword: string): boolean => {
+    if (currentPassword === storedPassword) {
+      setStoredPassword(newPassword);
+      return true;
+    }
+    return false;
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, login, logout, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

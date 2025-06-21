@@ -13,18 +13,11 @@ export function ViewManager({ category }: ViewManagerProps) {
   const { data } = useData();
   const [viewType, setViewType] = useState<'data' | 'ledger'>('data');
   const [selectedPerson, setSelectedPerson] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedPeriod, setSelectedPeriod] = useState<'1-15' | '16-31' | '1-10' | '11-20' | '21-31'>('1-15');
   
-  // New state for village date range
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
-  const [selectedMonthForVillage, setSelectedMonthForVillage] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
-  const [startDate, setStartDate] = useState('1');
-  const [endDate, setEndDate] = useState('15');
-
-  // New state for dairy date selection
-  const [selectedYearForDairy, setSelectedYearForDairy] = useState(new Date().getFullYear().toString());
-  const [selectedMonthForDairy, setSelectedMonthForDairy] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
+  // Unified date range state for all categories
+  const currentDate = new Date();
+  const [startDate, setStartDate] = useState(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(currentDate.toISOString().split('T')[0]);
 
   const people = data.people.filter(p => p.category === category);
 
@@ -33,52 +26,30 @@ export function ViewManager({ category }: ViewManagerProps) {
   }
 
   const getFilteredData = () => {
+    const filterByDateRange = (entryDate: string) => {
+      return entryDate >= startDate && entryDate <= endDate;
+    };
+
     switch (category) {
       case 'village':
         return data.villageEntries.filter(entry => {
           const matchesPerson = !selectedPerson || entry.personId === selectedPerson;
-          const entryDate = new Date(entry.date);
-          const entryYear = entryDate.getFullYear();
-          const entryMonth = entryDate.getMonth() + 1;
-          const entryDay = entryDate.getDate();
-          
-          const matchesYear = entryYear === parseInt(selectedYear);
-          const matchesMonth = entryMonth === parseInt(selectedMonthForVillage);
-          const matchesDateRange = entryDay >= parseInt(startDate) && entryDay <= parseInt(endDate);
-          
-          return matchesPerson && matchesYear && matchesMonth && matchesDateRange;
+          const matchesDateRange = filterByDateRange(entry.date);
+          return matchesPerson && matchesDateRange;
         });
 
       case 'city':
         return data.cityEntries.filter(entry => {
           const matchesPerson = !selectedPerson || entry.personId === selectedPerson;
-          const matchesMonth = entry.date.startsWith(selectedMonth);
-          return matchesPerson && matchesMonth;
+          const matchesDateRange = filterByDateRange(entry.date);
+          return matchesPerson && matchesDateRange;
         });
 
       case 'dairy':
         return data.dairyEntries.filter(entry => {
           const matchesPerson = !selectedPerson || entry.personId === selectedPerson;
-          const entryDate = new Date(entry.date);
-          const entryYear = entryDate.getFullYear();
-          const entryMonth = entryDate.getMonth() + 1;
-          const entryDay = entryDate.getDate();
-          
-          const matchesYear = entryYear === parseInt(selectedYearForDairy);
-          const matchesMonth = entryMonth === parseInt(selectedMonthForDairy);
-          
-          let matchesPeriod = true;
-          if (selectedPeriod === '1-10') {
-            matchesPeriod = entryDay >= 1 && entryDay <= 10;
-          } else if (selectedPeriod === '11-20') {
-            matchesPeriod = entryDay >= 11 && entryDay <= 20;
-          } else if (selectedPeriod === '21-31') {
-            // Get last day of the month
-            const lastDay = new Date(entryYear, entryMonth, 0).getDate();
-            matchesPeriod = entryDay >= 21 && entryDay <= lastDay;
-          }
-          
-          return matchesPerson && matchesYear && matchesMonth && matchesPeriod;
+          const matchesDateRange = filterByDateRange(entry.date);
+          return matchesPerson && matchesDateRange;
         });
 
       default:
@@ -119,20 +90,7 @@ export function ViewManager({ category }: ViewManagerProps) {
   const { totalAmount, totalEntries } = calculateTotals();
 
   const getDateRangeString = () => {
-    switch (category) {
-      case 'village':
-        return `${selectedYear}-${selectedMonthForVillage}-${startDate.padStart(2, '0')}_to_${selectedYear}-${selectedMonthForVillage}-${endDate.padStart(2, '0')}`;
-      case 'city':
-        return selectedMonth;
-      case 'dairy':
-        let periodText = '';
-        if (selectedPeriod === '1-10') periodText = '01-10';
-        else if (selectedPeriod === '11-20') periodText = '11-20';
-        else periodText = '21-31';
-        return `${selectedYearForDairy}-${selectedMonthForDairy}-${periodText}`;
-      default:
-        return '';
-    }
+    return `${startDate}_to_${endDate}`;
   };
 
   const getSelectedPersonName = () => {
@@ -171,9 +129,9 @@ export function ViewManager({ category }: ViewManagerProps) {
     // Add filters info
     doc.setFontSize(12);
     const customerName = getSelectedPersonName().replace(/_/g, ' ');
-    const dateRange = getDateRangeString().replace(/_/g, ' ');
+    const dateRangeDisplay = `${startDate} to ${endDate}`;
     doc.text(`Customer: ${customerName}`, 20, 35);
-    doc.text(`Date Range: ${dateRange}`, 20, 45);
+    doc.text(`Date Range: ${dateRangeDisplay}`, 20, 45);
     doc.text(`Total Entries: ${totalEntries}`, 20, 55);
     doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`, 20, 65);
 
@@ -242,7 +200,7 @@ export function ViewManager({ category }: ViewManagerProps) {
 
         await navigator.share({
           title: `${category.toUpperCase()} Data Report`,
-          text: `Data report for ${getSelectedPersonName().replace(/_/g, ' ')} - ${getDateRangeString().replace(/_/g, ' ')}`,
+          text: `Data report for ${getSelectedPersonName().replace(/_/g, ' ')} from ${startDate} to ${endDate}`,
           files: [file]
         });
       } catch (error) {
@@ -287,9 +245,9 @@ export function ViewManager({ category }: ViewManagerProps) {
         break;
 
       case 'dairy':
-        headers = 'Date,Person,Session,Milk,Fat,Total Amount\n';
+        headers = 'Date,Person,Session,Milk,Fat,Meter,Rate,Fat Amount,Meter Amount,Total Amount\n';
         rows = filteredData.map((entry: any) => 
-          `${entry.date},${entry.personName},${entry.session},${entry.milk},${entry.fat},${entry.totalAmount}`
+          `${entry.date},${entry.personName},${entry.session},${entry.milk},${entry.fat},${entry.meter},${entry.rate},${entry.fatAmount},${entry.meterAmount},${entry.totalAmount}`
         ).join('\n');
         break;
     }
@@ -331,6 +289,7 @@ export function ViewManager({ category }: ViewManagerProps) {
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Session</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Milk</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fat</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meter</th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
           </tr>
         );
@@ -338,7 +297,10 @@ export function ViewManager({ category }: ViewManagerProps) {
   };
 
   const renderTableRows = () => {
-    return filteredData.map((entry: any) => {
+    // Sort data by date (newest first)
+    const sortedData = [...filteredData].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return sortedData.map((entry: any) => {
       switch (category) {
         case 'village':
           return (
@@ -378,6 +340,7 @@ export function ViewManager({ category }: ViewManagerProps) {
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{entry.milk.toFixed(2)}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{entry.fat.toFixed(2)}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{entry.meter.toFixed(2)}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">₹{entry.totalAmount.toFixed(2)}</td>
             </tr>
           );
@@ -385,34 +348,14 @@ export function ViewManager({ category }: ViewManagerProps) {
     });
   };
 
-  // Generate year options (current year ± 5 years)
-  const currentYear = new Date().getFullYear();
-  const yearOptions = [];
-  for (let i = currentYear - 5; i <= currentYear + 5; i++) {
-    yearOptions.push(i.toString());
-  }
-
-  // Generate month options
-  const monthOptions = [
-    { value: '01', label: 'January' },
-    { value: '02', label: 'February' },
-    { value: '03', label: 'March' },
-    { value: '04', label: 'April' },
-    { value: '05', label: 'May' },
-    { value: '06', label: 'June' },
-    { value: '07', label: 'July' },
-    { value: '08', label: 'August' },
-    { value: '09', label: 'September' },
-    { value: '10', label: 'October' },
-    { value: '11', label: 'November' },
-    { value: '12', label: 'December' }
-  ];
-
-  // Generate day options
-  const dayOptions = [];
-  for (let i = 1; i <= 31; i++) {
-    dayOptions.push(i.toString());
-  }
+  const formatDateForDisplay = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-IN', { 
+      day: '2-digit', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -471,22 +414,23 @@ export function ViewManager({ category }: ViewManagerProps) {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-gray-500" />
-          <h3 className="text-lg font-medium text-gray-900">Filters</h3>
+      {/* Enhanced Filters Section */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-6">
+          <Filter className="w-5 h-5 text-blue-600" />
+          <h3 className="text-lg font-medium text-gray-900">Filter Data</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <User className="w-4 h-4 inline mr-1" />
-              Person
+              Select Person
             </label>
             <select
               value={selectedPerson}
               onChange={(e) => setSelectedPerson(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             >
               <option value="">All People</option>
               {people.map(person => (
@@ -497,171 +441,95 @@ export function ViewManager({ category }: ViewManagerProps) {
             </select>
           </div>
 
-          {category === 'village' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="w-4 h-4 inline mr-1" />
-                  Year
-                </label>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {yearOptions.map(year => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Month
-                </label>
-                <select
-                  value={selectedMonthForVillage}
-                  onChange={(e) => setSelectedMonthForVillage(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {monthOptions.map(month => (
-                    <option key={month.value} value={month.value}>
-                      {month.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Start Date
-                </label>
-                <select
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {dayOptions.map(day => (
-                    <option key={day} value={day}>
-                      {day}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  End Date
-                </label>
-                <select
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {dayOptions.map(day => (
-                    <option key={day} value={day}>
-                      {day}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Calendar className="w-4 h-4 inline mr-1" />
+              Start Date
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            />
+          </div>
 
-          {category === 'city' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="w-4 h-4 inline mr-1" />
-                Month
-              </label>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Calendar className="w-4 h-4 inline mr-1" />
+              End Date
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            />
+          </div>
 
-          {category === 'dairy' && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="w-4 h-4 inline mr-1" />
-                  Year
-                </label>
-                <select
-                  value={selectedYearForDairy}
-                  onChange={(e) => setSelectedYearForDairy(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {yearOptions.map(year => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Month
-                </label>
-                <select
-                  value={selectedMonthForDairy}
-                  onChange={(e) => setSelectedMonthForDairy(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {monthOptions.map(month => (
-                    <option key={month.value} value={month.value}>
-                      {month.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Period
-                </label>
-                <select
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="1-10">1st - 10th</option>
-                  <option value="11-20">11th - 20th</option>
-                  <option value="21-31">21st - Last Day</option>
-                </select>
-              </div>
-            </>
-          )}
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                const today = new Date();
+                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                setStartDate(firstDayOfMonth.toISOString().split('T')[0]);
+                setEndDate(today.toISOString().split('T')[0]);
+              }}
+              className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
+            >
+              This Month
+            </button>
+          </div>
+        </div>
+
+        {/* Date Range Display */}
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            <strong>Viewing data from:</strong> {formatDateForDisplay(startDate)} to {formatDateForDisplay(endDate)}
+            {selectedPerson && (
+              <span className="ml-2">
+                <strong>for:</strong> {people.find(p => p.id === selectedPerson)?.name}
+              </span>
+            )}
+          </p>
         </div>
       </div>
 
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-6 shadow-sm">
           <div className="flex items-center">
-            <FileText className="w-8 h-8 text-blue-600 mr-3" />
+            <div className="p-3 bg-blue-600 rounded-full mr-4">
+              <FileText className="w-6 h-6 text-white" />
+            </div>
             <div>
               <p className="text-sm font-medium text-blue-600">Total Entries</p>
-              <p className="text-2xl font-bold text-blue-900">{totalEntries}</p>
+              <p className="text-3xl font-bold text-blue-900">{totalEntries}</p>
             </div>
           </div>
         </div>
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+        <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-6 shadow-sm">
           <div className="flex items-center">
-            <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center mr-3">
-              <span className="text-white font-bold">₹</span>
+            <div className="p-3 bg-green-600 rounded-full mr-4 flex items-center justify-center">
+              <span className="text-white font-bold text-lg">₹</span>
             </div>
             <div>
               <p className="text-sm font-medium text-green-600">Total Amount</p>
-              <p className="text-2xl font-bold text-green-900">₹{totalAmount.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-green-900">₹{totalAmount.toFixed(2)}</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Data Records</h3>
+      {/* Data Table */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+        <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-gray-900">Data Records</h3>
+            <div className="text-sm text-gray-600">
+              {totalEntries} {totalEntries === 1 ? 'record' : 'records'} found
+            </div>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -671,8 +539,14 @@ export function ViewManager({ category }: ViewManagerProps) {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                    No data found matching the selected filters.
+                  <td colSpan={7} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center">
+                      <FileText className="w-12 h-12 text-gray-400 mb-4" />
+                      <p className="text-gray-500 text-lg font-medium">No data found</p>
+                      <p className="text-gray-400 text-sm mt-1">
+                        Try adjusting your date range or person filter
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (

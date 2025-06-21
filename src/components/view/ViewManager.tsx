@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Filter, Download, Calendar, User, FileText, Calculator, Share2, FileDown } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { LedgerView } from './LedgerView';
+import { ShareModal } from './ShareModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -13,6 +14,7 @@ export function ViewManager({ category }: ViewManagerProps) {
   const { data } = useData();
   const [viewType, setViewType] = useState<'data' | 'ledger'>('data');
   const [selectedPerson, setSelectedPerson] = useState('');
+  const [showShareModal, setShowShareModal] = useState(false);
   
   // Unified date range state for all categories
   const currentDate = new Date();
@@ -190,39 +192,18 @@ export function ViewManager({ category }: ViewManagerProps) {
     doc.save(generateFileName('pdf'));
   };
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        // Generate CSV content for sharing
-        const csvContent = generateCSV();
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const file = new File([blob], generateFileName('csv'), { type: 'text/csv' });
+  const handleShare = () => {
+    const customerName = getSelectedPersonName().replace(/_/g, ' ');
+    const dateRangeDisplay = `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`;
+    
+    const shareData = {
+      title: `${category.toUpperCase()} Data Report`,
+      content: `Report for ${customerName}\nDate Range: ${dateRangeDisplay}\nTotal Entries: ${totalEntries}\nTotal Amount: ₹${totalAmount.toFixed(2)}`,
+      fileName: generateFileName('csv'),
+      csvContent: generateCSV()
+    };
 
-        await navigator.share({
-          title: `${category.toUpperCase()} Data Report`,
-          text: `Data report for ${getSelectedPersonName().replace(/_/g, ' ')} from ${startDate} to ${endDate}`,
-          files: [file]
-        });
-      } catch (error) {
-        console.error('Error sharing:', error);
-        // Fallback to download
-        handleExport();
-      }
-    } else {
-      // Fallback for browsers that don't support Web Share API
-      const csvContent = generateCSV();
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(url).then(() => {
-          alert('Download link copied to clipboard!');
-        });
-      } else {
-        // Final fallback - just download
-        handleExport();
-      }
-    }
+    setShowShareModal(true);
   };
 
   const generateCSV = () => {
@@ -556,6 +537,18 @@ export function ViewManager({ category }: ViewManagerProps) {
           </table>
         </div>
       </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        data={{
+          title: `${category.toUpperCase()} Data Report`,
+          content: `Report for ${getSelectedPersonName().replace(/_/g, ' ')}\nDate Range: ${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}\nTotal Entries: ${totalEntries}\nTotal Amount: ₹${totalAmount.toFixed(2)}`,
+          fileName: generateFileName('csv'),
+          csvContent: generateCSV()
+        }}
+      />
     </div>
   );
 }

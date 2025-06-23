@@ -9,8 +9,11 @@ interface LedgerViewProps {
 export function LedgerView({ category }: LedgerViewProps) {
   const { data } = useData();
   const [selectedPerson, setSelectedPerson] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedPeriod, setSelectedPeriod] = useState<'1-15' | '16-31' | '1-10' | '11-20' | '21-31'>('1-15');
+  
+  // Use unified date range for all categories
+  const currentDate = new Date();
+  const [startDate, setStartDate] = useState(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(currentDate.toISOString().split('T')[0]);
 
   const people = data.people.filter(p => p.category === category);
 
@@ -31,6 +34,11 @@ export function LedgerView({ category }: LedgerViewProps) {
 
     const filteredPeople = selectedPerson ? people.filter(p => p.id === selectedPerson) : people;
 
+    // Helper function to check if date is in range
+    const isDateInRange = (date: string) => {
+      return date >= startDate && date <= endDate;
+    };
+
     filteredPeople.forEach(person => {
       const personEntries: Array<{
         date: string;
@@ -42,33 +50,23 @@ export function LedgerView({ category }: LedgerViewProps) {
       let totalEarnings = 0;
       let totalPayments = 0;
 
-      // Get entries based on category
+      // Get entries based on category - filter by date range
       if (category === 'village') {
-        const entries = data.villageEntries.filter(e => e.personId === person.id);
+        const entries = data.villageEntries.filter(e => 
+          e.personId === person.id && isDateInRange(e.date)
+        );
         entries.forEach(entry => {
-          const entryDate = new Date(entry.date);
-          const day = entryDate.getDate();
-          
-          let includeEntry = true;
-          if (selectedPeriod === '1-15') {
-            includeEntry = day >= 1 && day <= 15;
-          } else if (selectedPeriod === '16-31') {
-            includeEntry = day >= 16 && day <= 31;
-          }
-
-          if (includeEntry) {
-            totalEarnings += entry.amount;
-            personEntries.push({
-              date: entry.date,
-              type: 'entry',
-              amount: entry.amount,
-              description: `Village Entry - M/Milk: ${entry.mMilk}, E/Milk: ${entry.eMilk}`
-            });
-          }
+          totalEarnings += entry.amount;
+          personEntries.push({
+            date: entry.date,
+            type: 'entry',
+            amount: entry.amount,
+            description: `Village Entry - M/Milk: ${entry.mMilk}, E/Milk: ${entry.eMilk}`
+          });
         });
       } else if (category === 'city') {
         const entries = data.cityEntries.filter(e => 
-          e.personId === person.id && e.date.startsWith(selectedMonth)
+          e.personId === person.id && isDateInRange(e.date)
         );
         entries.forEach(entry => {
           totalEarnings += entry.amount;
@@ -80,72 +78,33 @@ export function LedgerView({ category }: LedgerViewProps) {
           });
         });
       } else if (category === 'dairy') {
-        const entries = data.dairyEntries.filter(e => e.personId === person.id);
+        const entries = data.dairyEntries.filter(e => 
+          e.personId === person.id && isDateInRange(e.date)
+        );
         entries.forEach(entry => {
-          const entryDate = new Date(entry.date);
-          const day = entryDate.getDate();
-          
-          let includeEntry = true;
-          if (selectedPeriod === '1-10') {
-            includeEntry = day >= 1 && day <= 10;
-          } else if (selectedPeriod === '11-20') {
-            includeEntry = day >= 11 && day <= 20;
-          } else if (selectedPeriod === '21-31') {
-            includeEntry = day >= 21 && day <= 31;
-          }
-
-          if (includeEntry) {
-            totalEarnings += entry.totalAmount;
-            personEntries.push({
-              date: entry.date,
-              type: 'entry',
-              amount: entry.totalAmount,
-              description: `Dairy Entry - ${entry.session} - Milk: ${entry.milk}, Fat: ${entry.fat}`
-            });
-          }
+          totalEarnings += entry.totalAmount;
+          personEntries.push({
+            date: entry.date,
+            type: 'entry',
+            amount: entry.totalAmount,
+            description: `Dairy Entry - ${entry.session} - Milk: ${entry.milk}, Fat: ${entry.fat}`
+          });
         });
       }
 
-      // Get payments
+      // Get payments - filter by date range
       const payments = data.payments.filter(p => 
-        p.personId === person.id && p.category === category
+        p.personId === person.id && p.category === category && isDateInRange(p.date)
       );
 
       payments.forEach(payment => {
-        let includePayment = true;
-
-        if (category === 'village' || category === 'dairy') {
-          const paymentDate = new Date(payment.date);
-          const day = paymentDate.getDate();
-          
-          if (category === 'village') {
-            if (selectedPeriod === '1-15') {
-              includePayment = day >= 1 && day <= 15;
-            } else if (selectedPeriod === '16-31') {
-              includePayment = day >= 16 && day <= 31;
-            }
-          } else {
-            if (selectedPeriod === '1-10') {
-              includePayment = day >= 1 && day <= 10;
-            } else if (selectedPeriod === '11-20') {
-              includePayment = day >= 11 && day <= 20;
-            } else if (selectedPeriod === '21-31') {
-              includePayment = day >= 21 && day <= 31;
-            }
-          }
-        } else if (category === 'city') {
-          includePayment = payment.date.startsWith(selectedMonth);
-        }
-
-        if (includePayment) {
-          totalPayments += payment.amount;
-          personEntries.push({
-            date: payment.date,
-            type: 'payment',
-            amount: -payment.amount,
-            description: `Payment - ${payment.comment || 'No comment'}`
-          });
-        }
+        totalPayments += payment.amount;
+        personEntries.push({
+          date: payment.date,
+          type: 'payment',
+          amount: -payment.amount,
+          description: `Payment - ${payment.comment || 'No comment'}`
+        });
       });
 
       // Sort entries by date
@@ -182,7 +141,7 @@ export function LedgerView({ category }: LedgerViewProps) {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `${category}-ledger-${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `${category}-ledger-${startDate}-to-${endDate}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -193,9 +152,18 @@ export function LedgerView({ category }: LedgerViewProps) {
   const totalPayments = ledgerData.reduce((sum, person) => sum + person.totalPayments, 0);
   const totalNet = totalEarnings - totalPayments;
 
+  const formatDateForDisplay = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-IN', { 
+      day: '2-digit', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-xl font-semibold text-gray-900 capitalize flex items-center gap-2">
           <Calculator className="w-6 h-6 text-blue-600" />
           {category} Ledger
@@ -211,7 +179,7 @@ export function LedgerView({ category }: LedgerViewProps) {
 
       {/* Filters */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <User className="w-4 h-4 inline mr-1" />
@@ -231,47 +199,57 @@ export function LedgerView({ category }: LedgerViewProps) {
             </select>
           </div>
 
-          {category === 'city' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="w-4 h-4 inline mr-1" />
-                Month
-              </label>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Calendar className="w-4 h-4 inline mr-1" />
+              Start Date
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
 
-          {(category === 'village' || category === 'dairy') && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="w-4 h-4 inline mr-1" />
-                Period
-              </label>
-              <select
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value as any)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {category === 'village' ? (
-                  <>
-                    <option value="1-15">1st - 15th</option>
-                    <option value="16-31">16th - 31st</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="1-10">1st - 10th</option>
-                    <option value="11-20">11th - 20th</option>
-                    <option value="21-31">21st - 31st</option>
-                  </>
-                )}
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Calendar className="w-4 h-4 inline mr-1" />
+              End Date
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                const today = new Date();
+                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                setStartDate(firstDayOfMonth.toISOString().split('T')[0]);
+                setEndDate(today.toISOString().split('T')[0]);
+              }}
+              className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
+            >
+              This Month
+            </button>
+          </div>
+        </div>
+
+        {/* Date Range Display */}
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            <strong>Ledger from:</strong> {formatDateForDisplay(startDate)} to {formatDateForDisplay(endDate)}
+            {selectedPerson && (
+              <span className="ml-2">
+                <strong>for:</strong> {people.find(p => p.id === selectedPerson)?.name}
+              </span>
+            )}
+          </p>
         </div>
       </div>
 
@@ -310,10 +288,10 @@ export function LedgerView({ category }: LedgerViewProps) {
       <div className="space-y-6">
         {ledgerData.map(person => (
           <div key={person.personId} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <div className="flex items-center justify-between">
+            <div className="px-4 sm:px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <h3 className="text-lg font-medium text-gray-900">{person.personName}</h3>
-                <div className="flex items-center gap-4 text-sm">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
                   <span className="text-green-600 font-medium">
                     Earnings: ₹{person.totalEarnings.toFixed(2)}
                   </span>
@@ -332,11 +310,11 @@ export function LedgerView({ category }: LedgerViewProps) {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                      <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -346,8 +324,8 @@ export function LedgerView({ category }: LedgerViewProps) {
                         runningBalance += entry.amount;
                         return (
                           <tr key={index} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.date}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.date}</td>
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                 entry.type === 'entry' 
                                   ? 'bg-green-100 text-green-800' 
@@ -356,13 +334,13 @@ export function LedgerView({ category }: LedgerViewProps) {
                                 {entry.type === 'entry' ? 'Entry' : 'Payment'}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-700">{entry.description}</td>
-                            <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-medium ${
+                            <td className="px-4 sm:px-6 py-4 text-sm text-gray-700 max-w-xs truncate">{entry.description}</td>
+                            <td className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-medium ${
                               entry.amount >= 0 ? 'text-green-600' : 'text-red-600'
                             }`}>
                               {entry.amount >= 0 ? '+' : ''}₹{entry.amount.toFixed(2)}
                             </td>
-                            <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${
+                            <td className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${
                               runningBalance >= 0 ? 'text-blue-600' : 'text-orange-600'
                             }`}>
                               ₹{runningBalance.toFixed(2)}
@@ -375,8 +353,8 @@ export function LedgerView({ category }: LedgerViewProps) {
                 </table>
               </div>
             ) : (
-              <div className="px-6 py-8 text-center text-gray-500">
-                No transactions found for this person in the selected period.
+              <div className="px-4 sm:px-6 py-8 text-center text-gray-500">
+                No transactions found for this person in the selected date range.
               </div>
             )}
           </div>

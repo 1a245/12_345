@@ -71,7 +71,7 @@ export function PaymentManager({ category }: PaymentManagerProps) {
         {category} Payments
       </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div>
           <h3 className="text-lg font-medium text-gray-900 mb-4">Select Date</h3>
           <Calendar selectedDate={selectedDate} onDateSelect={setSelectedDate} />
@@ -97,8 +97,8 @@ export function PaymentManager({ category }: PaymentManagerProps) {
           </div>
 
           {selectedPersonId && (
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h4 className="text-lg font-medium text-gray-900 mb-4">
+            <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
+              <h4 className="text-base sm:text-lg font-medium text-gray-900 mb-4">
                 {paymentLabel} for {selectedPerson?.name} - {selectedDate}
               </h4>
 
@@ -130,10 +130,10 @@ export function PaymentManager({ category }: PaymentManagerProps) {
                   />
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <button
                     onClick={handleSave}
-                    className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                   >
                     <Save className="w-4 h-4" />
                     {editingId ? 'Update' : 'Save'} Payment
@@ -155,7 +155,7 @@ export function PaymentManager({ category }: PaymentManagerProps) {
 
       {payments.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+          <div className="px-4 sm:px-6 py-4 bg-gray-50 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">
               Payments for {selectedDate}
             </h3>
@@ -164,16 +164,16 @@ export function PaymentManager({ category }: PaymentManagerProps) {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Person
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Amount
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Comment
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -181,30 +181,38 @@ export function PaymentManager({ category }: PaymentManagerProps) {
               <tbody className="bg-white divide-y divide-gray-200">
                 {payments.map((payment) => (
                   <tr key={payment.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {payment.personName}
+                    <td className="px-3 sm:px-6 py-4 text-sm font-medium text-gray-900">
+                      <div className="truncate max-w-[120px] sm:max-w-none">
+                        {payment.personName}
+                      </div>
+                      {/* Show comment on mobile */}
+                      <div className="sm:hidden text-xs text-gray-500 mt-1 truncate">
+                        {payment.comment || '-'}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       ₹{payment.amount.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
+                    <td className="hidden sm:table-cell px-6 py-4 text-sm text-gray-700 max-w-xs truncate">
                       {payment.comment || '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      <button
-                        onClick={() => handleEdit(payment)}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
-                      >
-                        <Edit2 className="w-3 h-3" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deletePayment(payment.id)}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        Delete
-                      </button>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                        <button
+                          onClick={() => handleEdit(payment)}
+                          className="inline-flex items-center justify-center gap-1 px-2 sm:px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-xs sm:text-sm"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                          <span className="hidden sm:inline">Edit</span>
+                        </button>
+                        <button
+                          onClick={() => deletePayment(payment.id)}
+                          className="inline-flex items-center justify-center gap-1 px-2 sm:px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors text-xs sm:text-sm"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span className="hidden sm:inline">Delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

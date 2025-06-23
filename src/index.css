@@ -31,6 +31,21 @@
   .mobile-app textarea {
     font-size: 16px; /* Prevents zoom on iOS */
   }
+
+  /* Mobile-specific table adjustments */
+  .mobile-app table {
+    font-size: 14px;
+  }
+  
+  .mobile-app th,
+  .mobile-app td {
+    padding: 8px 12px;
+  }
+
+  /* Responsive text truncation */
+  .mobile-app .truncate {
+    max-width: 100px;
+  }
 }
 
 /* Improved scrolling on mobile */
@@ -55,4 +70,39 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* Mobile responsive improvements */
+@media (max-width: 640px) {
+  /* Adjust main container padding on mobile */
+  .max-w-7xl {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Stack form elements vertically on mobile */
+  .grid-cols-1.md\:grid-cols-3,
+  .grid-cols-1.md\:grid-cols-4 {
+    gap: 1rem;
+  }
+
+  /* Improve button spacing on mobile */
+  .flex.gap-2 {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .flex.gap-2 > button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Exception for inline button groups */
+  .flex.gap-2.sm\:flex-row {
+    flex-direction: row;
+  }
+
+  .flex.gap-2.sm\:flex-row > button {
+    width: auto;
+  }
 }

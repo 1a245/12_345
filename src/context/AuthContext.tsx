@@ -1,41 +1,208 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
+interface User {
+  id: string;
+  email: string;
+}
+
 interface AuthContextType {
+  user: User | null;
   isAuthenticated: boolean;
-  login: (password: string) => boolean;
-  logout: () => void;
-  changePassword: (currentPassword: string, newPassword: string) => boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useLocalStorage('isAuthenticated', false);
-  const [storedPassword, setStoredPassword] = useLocalStorage('userPassword', 'admin123');
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [offlineMode, setOfflineMode] = useLocalStorage('offlineMode', false);
+  const [offlineUser, setOfflineUser] = useLocalStorage<User | null>('offlineUser', null);
 
-  const login = (password: string): boolean => {
-    if (password === storedPassword) {
-      setIsAuthenticated(true);
-      return true;
+  useEffect(() => {
+    checkConnection();
+  }, []);
+
+  const checkConnection = async () => {
+    try {
+      // Try to connect to Supabase
+      const { data, error } = await supabase.from('users').select('count').limit(1);
+      
+      if (error) {
+        console.log('Supabase connection failed, using offline mode');
+        setOfflineMode(true);
+        setUser(offlineUser);
+      } else {
+        setOfflineMode(false);
+        // Check for existing session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('id, email')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (userData) {
+            setUser(userData);
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Network error, using offline mode');
+      setOfflineMode(true);
+      setUser(offlineUser);
+    } finally {
+      setIsLoading(false);
     }
-    return false;
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
+  const hashPassword = async (password: string): Promise<string> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hash))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
   };
 
-  const changePassword = (currentPassword: string, newPassword: string): boolean => {
-    if (currentPassword === storedPassword) {
-      setStoredPassword(newPassword);
-      return true;
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    if (offlineMode) {
+      // Offline login with default credentials
+      if (email === 'admin@m13.com' && password === 'admin123') {
+        const offlineUserData = { id: 'offline-user', email: 'admin@m13.com' };
+        setUser(offlineUserData);
+        setOfflineUser(offlineUserData);
+        return { success: true };
+      }
+      return { success: false, error: 'Invalid credentials (offline mode)' };
     }
-    return false;
+
+    try {
+      const passwordHash = await hashPassword(password);
+      
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('id, email')
+        .eq('email', email)
+        .eq('password_hash', passwordHash)
+        .single();
+
+      if (error || !userData) {
+        return { success: false, error: 'Invalid email or password' };
+      }
+
+      setUser(userData);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: 'Login failed. Please try again.' };
+    }
+  };
+
+  const register = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    if (offlineMode) {
+      return { success: false, error: 'Registration not available in offline mode' };
+    }
+
+    try {
+      // Check if user already exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+      if (existingUser) {
+        return { success: false, error: 'User with this email already exists' };
+      }
+
+      const passwordHash = await hashPassword(password);
+      
+      const { data: newUser, error } = await supabase
+        .from('users')
+        .insert({
+          email,
+          password_hash: passwordHash
+        })
+        .select('id, email')
+        .single();
+
+      if (error || !newUser) {
+        return { success: false, error: 'Registration failed. Please try again.' };
+      }
+
+      setUser(newUser);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: 'Registration failed. Please try again.' };
+    }
+  };
+
+  const logout = async () => {
+    setUser(null);
+    setOfflineUser(null);
+    if (!offlineMode) {
+      await supabase.auth.signOut();
+    }
+  };
+
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    if (offlineMode) {
+      return { success: false, error: 'Password change not available in offline mode' };
+    }
+
+    if (!user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    try {
+      const currentPasswordHash = await hashPassword(currentPassword);
+      const newPasswordHash = await hashPassword(newPassword);
+
+      // Verify current password
+      const { data: userData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', user.id)
+        .eq('password_hash', currentPasswordHash)
+        .single();
+
+      if (!userData) {
+        return { success: false, error: 'Current password is incorrect' };
+      }
+
+      // Update password
+      const { error } = await supabase
+        .from('users')
+        .update({ password_hash: newPasswordHash, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (error) {
+        return { success: false, error: 'Failed to update password' };
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: 'Password change failed. Please try again.' };
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout, changePassword }}>
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: !!user,
+      isLoading,
+      login,
+      register,
+      logout,
+      changePassword
+    }}>
       {children}
     </AuthContext.Provider>
   );

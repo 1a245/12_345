@@ -16,28 +16,36 @@ export function PasswordSettings() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setIsLoading(true);
 
     if (formData.newPassword !== formData.confirmPassword) {
       setError('New passwords do not match');
+      setIsLoading(false);
       return;
     }
 
     if (formData.newPassword.length < 6) {
       setError('New password must be at least 6 characters long');
+      setIsLoading(false);
       return;
     }
 
-    if (changePassword(formData.currentPassword, formData.newPassword)) {
+    const result = await changePassword(formData.currentPassword, formData.newPassword);
+    
+    if (result.success) {
       setSuccess('Password changed successfully!');
       setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } else {
-      setError('Current password is incorrect');
+      setError(result.error || 'Failed to change password');
     }
+
+    setIsLoading(false);
   };
 
   const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
@@ -143,10 +151,11 @@ export function PasswordSettings() {
 
         <button
           type="submit"
-          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          disabled={isLoading}
+          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors font-medium"
         >
           <Save className="w-4 h-4" />
-          Change Password
+          {isLoading ? 'Changing...' : 'Change Password'}
         </button>
       </form>
 

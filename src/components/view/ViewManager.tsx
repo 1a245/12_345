@@ -195,10 +195,11 @@ export function ViewManager({ category }: ViewManagerProps) {
   const handleShare = () => {
     const customerName = getSelectedPersonName().replace(/_/g, ' ');
     const dateRangeDisplay = `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`;
+    const deviceInfo = `Generated on ${new Date().toLocaleDateString()} from M13 Business Management`;
     
     const shareData = {
       title: `${category.toUpperCase()} Data Report`,
-      content: `Report for ${customerName}\nDate Range: ${dateRangeDisplay}\nTotal Entries: ${totalEntries}\nTotal Amount: ₹${totalAmount.toFixed(2)}`,
+      content: `Report for ${customerName}\nDate Range: ${dateRangeDisplay}\nTotal Entries: ${totalEntries}\nTotal Amount: ₹${totalAmount.toFixed(2)}\n\n${deviceInfo}`,
       fileName: generateFileName('csv'),
       csvContent: generateCSV()
     };

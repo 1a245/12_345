@@ -1,12 +1,40 @@
 import React from 'react';
-import { Wifi, WifiOff, RefreshCw, AlertCircle } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, AlertCircle, Users } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 
 export function ConnectionStatus() {
   const { isOffline, syncStatus, syncData } = useData();
+  const { user } = useAuth();
+  const [activeDevices, setActiveDevices] = React.useState(1);
+
+  React.useEffect(() => {
+    // Simulate active device detection (in real app, this would come from Supabase presence)
+    const deviceId = localStorage.getItem('deviceId') || Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('deviceId', deviceId);
+    
+    // Update last seen timestamp
+    if (user && !isOffline) {
+      localStorage.setItem('lastSeen', new Date().toISOString());
+    }
+  }, [user, isOffline]);
 
   if (!isOffline && syncStatus === 'idle') {
-    return null; // Don't show anything when online and synced
+    // Show minimal online indicator
+    return (
+      <div className="fixed top-4 right-4 z-50">
+        <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 border border-green-200 rounded-full text-xs font-medium shadow-sm">
+          <Wifi className="w-3 h-3" />
+          <span>Online</span>
+          {activeDevices > 1 && (
+            <>
+              <Users className="w-3 h-3 ml-1" />
+              <span>{activeDevices}</span>
+            </>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -44,7 +72,7 @@ export function ConnectionStatus() {
         ) : (
           <>
             <Wifi className="w-4 h-4" />
-            Online
+            Online & Synced
           </>
         )}
       </div>

@@ -44,6 +44,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [isOffline, setIsOffline] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
   const [localData, setLocalData] = useLocalStorage<AppData>('m13-offline-data', initialData);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -140,6 +141,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         setData(cloudData);
         setLocalData(cloudData); // Cache for offline use
+        setLastSyncTime(new Date());
       } catch (error) {
         console.error('Failed to load data from cloud:', error);
         setData(localData);
@@ -162,6 +164,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       await loadData();
       setSyncStatus('idle');
+      setLastSyncTime(new Date());
     } catch (error) {
       console.error('Sync failed:', error);
       setSyncStatus('error');
@@ -666,6 +669,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       isOffline,
       syncStatus,
+      lastSyncTime,
       addPerson,
       updatePerson,
       deletePerson,

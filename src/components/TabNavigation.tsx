@@ -2,6 +2,7 @@ import React from 'react';
 import { Settings, Eye, CreditCard, PlusCircle, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ConnectionStatus } from './ConnectionStatus';
+import { DeviceSync } from './DeviceSync';
 
 interface TabNavigationProps {
   activeMainTab: string;
@@ -12,6 +13,7 @@ interface TabNavigationProps {
 
 export function TabNavigation({ activeMainTab, activeSubTab, onMainTabChange, onSubTabChange }: TabNavigationProps) {
   const { logout, user } = useAuth();
+  const [showDeviceSync, setShowDeviceSync] = React.useState(false);
 
   const mainTabs = [
     { id: 'entry', label: 'ENTRY', icon: PlusCircle },
@@ -37,7 +39,13 @@ export function TabNavigation({ activeMainTab, activeSubTab, onMainTabChange, on
               {user && (
                 <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-lg">
                   <User className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm text-gray-700">{user.email}</span>
+                  <span className="text-sm text-gray-700 hidden sm:inline">{user.email}</span>
+                  <button
+                    onClick={() => setShowDeviceSync(!showDeviceSync)}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium ml-2"
+                  >
+                    Sync
+                  </button>
                 </div>
               )}
               <button
@@ -87,6 +95,13 @@ export function TabNavigation({ activeMainTab, activeSubTab, onMainTabChange, on
           </div>
         </div>
       </div>
+      
+      {/* Device Sync Panel */}
+      {showDeviceSync && (
+        <div className="fixed top-16 right-4 z-50 w-80">
+          <DeviceSync />
+        </div>
+      )}
     </>
   );
 }

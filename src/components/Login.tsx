@@ -184,15 +184,12 @@ export function Login() {
           </button>
         </div>
 
-        {!isRegister && (
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h4 className="text-sm font-medium text-gray-900 mb-2">Demo Credentials:</h4>
-            <p className="text-sm text-gray-600">
-              <strong>Email:</strong> admin@m13.com<br />
-              <strong>Password:</strong> admin123
-            </p>
-          </div>
-        )}
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h4 className="text-sm font-medium text-blue-900 mb-2">Getting Started:</h4>
+          <p className="text-sm text-blue-700">
+            Create your account to start managing your business data. All data is stored securely and syncs across your devices.
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Wifi, WifiOff, RefreshCw, AlertCircle, Users } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, AlertCircle, Users, Database } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import { hasSupabaseCredentials } from '../lib/supabase';
 
 export function ConnectionStatus() {
   const { isOffline, syncStatus, syncData } = useData();
@@ -20,7 +21,18 @@ export function ConnectionStatus() {
   }, [user, isOffline]);
 
   if (!isOffline && syncStatus === 'idle') {
-    // Show minimal online indicator
+    // Show minimal online indicator only if we have real Supabase credentials
+    if (!hasSupabaseCredentials()) {
+      return (
+        <div className="fixed top-4 right-4 z-50">
+          <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 border border-blue-200 rounded-full text-xs font-medium shadow-sm">
+            <Database className="w-3 h-3" />
+            <span>Local Storage</span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="fixed top-4 right-4 z-50">
         <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 border border-green-200 rounded-full text-xs font-medium shadow-sm">

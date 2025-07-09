@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, hasSupabaseCredentials } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { AppData, Person, VillageEntry, CityEntry, DairyEntry, Payment } from '../types';
@@ -56,6 +56,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const checkConnection = async (): Promise<boolean> => {
     try {
+      // If we don't have real Supabase credentials, return false (offline mode)
+      if (!hasSupabaseCredentials()) {
+        return false;
+      }
+
       const { error } = await supabase.from('users').select('count').limit(1);
       return !error;
     } catch {

@@ -1,13 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env file.');
-}
+// Use placeholder values if environment variables are not set
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Check if we have real Supabase credentials
+export const hasSupabaseCredentials = () => {
+  return import.meta.env.VITE_SUPABASE_URL && 
+         import.meta.env.VITE_SUPABASE_ANON_KEY &&
+         import.meta.env.VITE_SUPABASE_URL !== 'your_supabase_project_url' &&
+         import.meta.env.VITE_SUPABASE_ANON_KEY !== 'your_supabase_anon_key';
+};
 
 // Database types
 export interface Database {

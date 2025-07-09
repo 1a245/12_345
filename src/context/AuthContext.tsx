@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, hasSupabaseCredentials } from '../lib/supabase';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
 interface User {
@@ -31,6 +31,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkConnection = async () => {
     try {
+      // If we don't have real Supabase credentials, go straight to offline mode
+      if (!hasSupabaseCredentials()) {
+        console.log('No Supabase credentials configured, using offline mode');
+        setOfflineMode(true);
+        setUser(offlineUser);
+        setIsLoading(false);
+        return;
+      }
+
       // Try to connect to Supabase
       const { data, error } = await supabase.from('users').select('count').limit(1);
       

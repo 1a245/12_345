@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Smartphone, Monitor, Tablet, Wifi, WifiOff, RefreshCw, Check, AlertTriangle } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import { hasSupabaseCredentials } from '../lib/supabase';
 
 export function DeviceSync() {
   const { isOffline, syncStatus, syncData } = useData();
@@ -146,8 +147,15 @@ export function DeviceSync() {
       )}
 
       <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
-        <p className="font-medium mb-1">Multi-Device Ready</p>
-        <p>Your data syncs automatically across all your devices. Changes made on one device will appear on others when online.</p>
+        <p className="font-medium mb-1">
+          {hasSupabaseCredentials() ? 'Multi-Device Ready' : 'Local Storage Mode'}
+        </p>
+        <p>
+          {hasSupabaseCredentials() 
+            ? 'Your data syncs automatically across all your devices. Changes made on one device will appear on others when online.'
+            : 'Data is stored locally on this device. Configure Supabase credentials to enable multi-device sync.'
+          }
+        </p>
       </div>
     </div>
   );

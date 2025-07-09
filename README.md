@@ -4,13 +4,15 @@ A comprehensive business management application for Village, City, and Dairy ope
 
 ## Features
 
-- **Multi-category Management**: Village, City, and Dairy operations
+- **Multi-Device Sync**: Access your data from any device with the same login
+- **Multi-Category Management**: Village, City, and Dairy operations
 - **Data Entry**: Comprehensive entry forms for different business types
 - **Payment Tracking**: Track payments given and received
 - **Reporting**: Generate CSV and PDF reports
 - **Ledger Management**: Complete ledger view with running balances
-- **Password Security**: Changeable password system
+- **Secure Authentication**: User accounts with password management
 - **Android App**: Native Android application support
+- **Offline Support**: Works offline with automatic sync when online
 
 ## Getting Started
 
@@ -40,6 +42,28 @@ npm run android:sync
 npm run android:run
 ```
 
+## Multi-Device Setup
+
+To enable data synchronization across multiple devices:
+
+1. **Create Supabase Account**: Go to [supabase.com](https://supabase.com) and create a free account
+2. **Create New Project**: Set up a new project in your Supabase dashboard
+3. **Get API Credentials**: Copy your Project URL and Anon Key from Settings → API
+4. **Configure Environment**: Create a `.env` file with your credentials:
+   ```
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your_anon_key_here
+   ```
+5. **Restart Application**: The app will automatically detect the configuration and enable sync
+
+### How Multi-Device Sync Works
+
+- **Same Login**: Use the same email/password on all devices
+- **Automatic Sync**: Data syncs automatically when online
+- **Offline Support**: Continue working offline, sync when connection returns
+- **Real-time Updates**: Changes appear on other devices instantly
+- **Secure**: All data is encrypted and stored securely in the cloud
+
 ## Android Setup Requirements
 
 1. **Android Studio**: Install Android Studio with SDK
@@ -56,10 +80,14 @@ npm run android:run
 5. Open Android Studio and import the android folder
 6. Build and run the app
 
-## Default Credentials
+## Usage
 
-- **Username**: admin
-- **Password**: admin123 (changeable in settings)
+1. **Create Account**: Register with your email and password
+2. **Add People**: Set up customers/suppliers in each category (Village, City, Dairy)
+3. **Enter Data**: Record daily transactions and milk collections
+4. **Track Payments**: Manage payments given and received
+5. **View Reports**: Generate detailed reports and ledgers
+6. **Multi-Device**: Access the same data from any device with your login
 
 ## Project Structure
 

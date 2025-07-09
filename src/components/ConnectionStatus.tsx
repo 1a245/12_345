@@ -25,9 +25,9 @@ export function ConnectionStatus() {
     if (!hasSupabaseCredentials()) {
       return (
         <div className="fixed top-4 right-4 z-50">
-          <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 border border-blue-200 rounded-full text-xs font-medium shadow-sm">
+          <div className="flex items-center gap-2 px-3 py-1 bg-orange-100 text-orange-800 border border-orange-200 rounded-full text-xs font-medium shadow-sm">
             <Database className="w-3 h-3" />
-            <span>Local Storage</span>
+            <span>Local Only</span>
           </div>
         </div>
       );

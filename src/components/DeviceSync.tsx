@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Smartphone, Monitor, Tablet, Wifi, WifiOff, RefreshCw, Check, AlertTriangle } from 'lucide-react';
+import { Smartphone, Monitor, Tablet, Wifi, WifiOff, RefreshCw, Check, AlertTriangle, Settings } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { hasSupabaseCredentials } from '../lib/supabase';
+import { SetupGuide } from './SetupGuide';
 
 export function DeviceSync() {
   const { isOffline, syncStatus, syncData } = useData();
   const { user } = useAuth();
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState({
     type: 'desktop' as 'desktop' | 'mobile' | 'tablet',
     name: 'Unknown Device'
@@ -146,7 +148,11 @@ export function DeviceSync() {
         </button>
       )}
 
-      <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+      <div className={`mt-3 p-2 border rounded text-xs ${
+        hasSupabaseCredentials() 
+          ? 'bg-green-50 border-green-200 text-green-800'
+          : 'bg-orange-50 border-orange-200 text-orange-800'
+      }`}>
         <p className="font-medium mb-1">
           {hasSupabaseCredentials() ? 'Multi-Device Ready' : 'Local Storage Mode'}
         </p>
@@ -157,6 +163,21 @@ export function DeviceSync() {
           }
         </p>
       </div>
+
+      {!hasSupabaseCredentials() && (
+        <button
+          onClick={() => setShowSetupGuide(true)}
+          className="w-full mt-2 px-3 py-2 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
+        >
+          <Settings className="w-3 h-3" />
+          Enable Multi-Device Sync
+        </button>
+      )}
+
+      <SetupGuide 
+        isOpen={showSetupGuide} 
+        onClose={() => setShowSetupGuide(false)} 
+      />
     </div>
   );
 }

@@ -1,17 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Use placeholder values if environment variables are not set
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 // Check if we have real Supabase credentials
-export const hasSupabaseCredentials = () => {
+const hasRealCredentials = () => {
   return import.meta.env.VITE_SUPABASE_URL && 
          import.meta.env.VITE_SUPABASE_ANON_KEY &&
          import.meta.env.VITE_SUPABASE_URL !== 'your_supabase_project_url' &&
          import.meta.env.VITE_SUPABASE_ANON_KEY !== 'your_supabase_anon_key';
+};
+
+// Use valid dummy values if environment variables are not properly set
+const supabaseUrl = hasRealCredentials() 
+  ? import.meta.env.VITE_SUPABASE_URL 
+  : 'https://placeholder.supabase.co';
+const supabaseAnonKey = hasRealCredentials() 
+  ? import.meta.env.VITE_SUPABASE_ANON_KEY 
+  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxMjM0NTYsImV4cCI6MTk2MDY5OTQ1Nn0.placeholder';
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export const hasSupabaseCredentials = () => {
+  return hasRealCredentials();
 };
 
 // Database types

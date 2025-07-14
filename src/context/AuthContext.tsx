@@ -33,14 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // If we don't have real Supabase credentials, go straight to offline mode
       if (!hasSupabaseCredentials()) {
-        console.log('No Supabase credentials configured, using offline mode');
+        console.log('🔧 No Supabase credentials configured, using offline mode');
         setOfflineMode(true);
         setUser(offlineUser);
         setIsLoading(false);
         return;
       }
 
-      console.log('Testing Supabase connection...');
+      console.log('🔍 Testing Supabase connection for auth...');
       
       // Try to connect to Supabase with timeout
       const controller = new AbortController();
@@ -56,11 +56,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(timeoutId);
         
         if (error) {
-          console.log('Supabase connection failed:', error.message);
+          console.log('❌ Supabase auth connection failed:', error.message);
           setOfflineMode(true);
           setUser(offlineUser);
         } else {
-          console.log('Supabase connection successful');
+          console.log('✅ Supabase auth connection successful');
           setOfflineMode(false);
           // Check for existing session
           const { data: { session } } = await supabase.auth.getSession();
@@ -78,12 +78,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
-        console.log('Network/timeout error:', fetchError.message);
+        console.log('❌ Network/timeout error:', fetchError.message);
         setOfflineMode(true);
         setUser(offlineUser);
       }
     } catch (error) {
-      console.log('Unexpected error, using offline mode:', error);
+      console.log('❌ Unexpected error, using offline mode:', error);
       setOfflineMode(true);
       setUser(offlineUser);
     } finally {

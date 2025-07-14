@@ -10,6 +10,7 @@ import { CityEntry } from './components/entry/CityEntry';
 import { DairyEntry } from './components/entry/DairyEntry';
 import { PaymentManager } from './components/payment/PaymentManager';
 import { ViewManager } from './components/view/ViewManager';
+import { DebugPanel } from './components/DebugPanel';
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
@@ -66,6 +67,8 @@ function AppContent() {
         <main className="max-w-7xl mx-auto px-4 py-8">
           {renderTabContent()}
         </main>
+        
+        <DebugPanel />
       </div>
     </AndroidOptimized>
   );

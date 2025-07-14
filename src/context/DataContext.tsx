@@ -58,9 +58,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       // If we don't have real Supabase credentials, return false (offline mode)
       if (!hasSupabaseCredentials()) {
+        console.log('❌ No valid Supabase credentials found');
         return false;
       }
 
+      console.log('🔍 Testing Supabase connection...');
+      
       // Test connection with a simple query and timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
@@ -73,10 +76,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           .abortSignal(controller.signal);
         
         clearTimeout(timeoutId);
+        
+        if (error) {
+          console.log('❌ Supabase query failed:', error.message);
+          return false;
+        }
+        
+        console.log('✅ Supabase connection successful');
         return !error;
       } catch (fetchError) {
         clearTimeout(timeoutId);
-        console.log('Connection test failed:', fetchError);
+        console.log('❌ Connection test failed:', fetchError);
         return false;
       }
     } catch {
@@ -92,6 +102,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       const isOnline = await checkConnection();
       setIsOffline(!isOnline);
+      
+      console.log(`🌐 Connection status: ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
 
       if (isOnline) {
         console.log('Loading data from Supabase for user:', user.id);

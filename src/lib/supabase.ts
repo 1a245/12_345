@@ -8,8 +8,8 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const hasRealCredentials = () => {
   return supabaseUrl && 
          supabaseAnonKey &&
-         supabaseUrl !== 'your_supabase_project_url' &&
-         supabaseAnonKey !== 'your_supabase_anon_key' &&
+         supabaseUrl !== 'https://svdupsbtuffsibshjzhm.supabase.co' &&
+         supabaseAnonKey !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2ZHVwc2J0dWZmc2lic2hqemhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzODkxMDEsImV4cCI6MjA2Njk2NTEwMX0.DKgsUTVD_ZfuDuc3nHWVucZyknwii9anXdvUqQPWzKY' &&
          supabaseUrl.includes('supabase.co');
 };
 

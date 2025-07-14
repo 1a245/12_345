@@ -1,16 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Get environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+// Debug environment variables
+console.log('🔧 Environment Variables Check:');
+console.log('VITE_SUPABASE_URL:', supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'NOT SET');
+console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'NOT SET');
 
 // Check if we have real Supabase credentials
 const hasRealCredentials = () => {
-  return supabaseUrl && 
-         supabaseAnonKey &&
-         supabaseUrl !== 'https://svdupsbtuffsibshjzhm.supabase.co' &&
-         supabaseAnonKey !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2ZHVwc2J0dWZmc2lic2hqemhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzODkxMDEsImV4cCI6MjA2Njk2NTEwMX0.DKgsUTVD_ZfuDuc3nHWVucZyknwii9anXdvUqQPWzKY' &&
-         supabaseUrl.includes('supabase.co');
+  const hasUrl = !!supabaseUrl && supabaseUrl.includes('supabase.co');
+  const hasKey = !!supabaseAnonKey && supabaseAnonKey.length > 50;
+  
+  console.log('🔍 Credentials Check:');
+  console.log('Has URL:', hasUrl);
+  console.log('Has Key:', hasKey);
+  console.log('URL valid:', supabaseUrl.includes('supabase.co'));
+  
+  return hasUrl && hasKey;
 };
 
 // Create Supabase client with proper configuration

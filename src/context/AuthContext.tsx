@@ -40,31 +40,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Try to connect to Supabase
-      const { data, error } = await supabase.from('users').select('count').limit(1);
+      console.log('Testing Supabase connection...');
       
-      if (error) {
-        console.log('Supabase connection failed, using offline mode');
-        setOfflineMode(true);
-        setUser(offlineUser);
-      } else {
-        setOfflineMode(false);
-        // Check for existing session
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { data: userData } = await supabase
-            .from('users')
-            .select('id, email')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (userData) {
-            setUser(userData);
+      // Try to connect to Supabase with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+      
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('count')
+          .limit(1)
+          .abortSignal(controller.signal);
+        
+        clearTimeout(timeoutId);
+        
+        if (error) {
+          console.log('Supabase connection failed:', error.message);
+          setOfflineMode(true);
+          setUser(offlineUser);
+        } else {
+          console.log('Supabase connection successful');
+          setOfflineMode(false);
+          // Check for existing session
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('id, email')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (userData) {
+              setUser(userData);
+            }
           }
         }
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        console.log('Network/timeout error:', fetchError.message);
+        setOfflineMode(true);
+        setUser(offlineUser);
       }
     } catch (error) {
-      console.log('Network error, using offline mode');
+      console.log('Unexpected error, using offline mode:', error);
       setOfflineMode(true);
       setUser(offlineUser);
     } finally {

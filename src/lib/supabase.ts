@@ -1,22 +1,40 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Get environment variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 // Check if we have real Supabase credentials
 const hasRealCredentials = () => {
-  return import.meta.env.VITE_SUPABASE_URL && 
-         import.meta.env.VITE_SUPABASE_ANON_KEY &&
-         import.meta.env.VITE_SUPABASE_URL !== 'your_supabase_project_url' &&
-         import.meta.env.VITE_SUPABASE_ANON_KEY !== 'your_supabase_anon_key';
+  return supabaseUrl && 
+         supabaseAnonKey &&
+         supabaseUrl !== 'your_supabase_project_url' &&
+         supabaseAnonKey !== 'your_supabase_anon_key' &&
+         supabaseUrl.includes('supabase.co');
 };
 
-// Use valid dummy values if environment variables are not properly set
-const supabaseUrl = hasRealCredentials() 
-  ? import.meta.env.VITE_SUPABASE_URL 
-  : 'https://placeholder.supabase.co';
-const supabaseAnonKey = hasRealCredentials() 
-  ? import.meta.env.VITE_SUPABASE_ANON_KEY 
-  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxMjM0NTYsImV4cCI6MTk2MDY5OTQ1Nn0.placeholder';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client with proper configuration
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false
+    },
+    realtime: {
+      params: {
+        eventsPerSecond: 10
+      }
+    },
+    global: {
+      headers: {
+        'x-client-info': 'm13-business-app'
+      }
+    }
+  }
+);
 
 export const hasSupabaseCredentials = () => {
   return hasRealCredentials();

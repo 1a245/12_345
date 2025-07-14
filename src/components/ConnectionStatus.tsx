@@ -8,6 +8,7 @@ export function ConnectionStatus() {
   const { isOffline, syncStatus, syncData } = useData();
   const { user } = useAuth();
   const [activeDevices, setActiveDevices] = React.useState(1);
+  const [connectionDetails, setConnectionDetails] = React.useState<string>('');
 
   React.useEffect(() => {
     // Simulate active device detection (in real app, this would come from Supabase presence)
@@ -17,6 +18,14 @@ export function ConnectionStatus() {
     // Update last seen timestamp
     if (user && !isOffline) {
       localStorage.setItem('lastSeen', new Date().toISOString());
+    }
+    
+    // Set connection details for debugging
+    if (hasSupabaseCredentials()) {
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      setConnectionDetails(url ? `Connected to: ${url.split('//')[1]?.split('.')[0]}` : 'Invalid URL');
+    } else {
+      setConnectionDetails('No Supabase credentials configured');
     }
   }, [user, isOffline]);
 
@@ -84,7 +93,12 @@ export function ConnectionStatus() {
         ) : (
           <>
             <Wifi className="w-4 h-4" />
-            Online & Synced
+            <span>Online</span>
+            {connectionDetails && (
+              <span className="hidden sm:inline text-xs opacity-75 ml-1">
+                ({connectionDetails.split(':')[1]?.trim()})
+              </span>
+            )}
           </>
         )}
       </div>

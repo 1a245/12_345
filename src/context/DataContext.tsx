@@ -61,8 +61,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      const { error } = await supabase.from('users').select('count').limit(1);
-      return !error;
+      // Test connection with a simple query and timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      try {
+        const { error } = await supabase
+          .from('users')
+          .select('count')
+          .limit(1)
+          .abortSignal(controller.signal);
+        
+        clearTimeout(timeoutId);
+        return !error;
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        console.log('Connection test failed:', fetchError);
+        return false;
+      }
     } catch {
       return false;
     }
@@ -72,13 +88,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
 
     setIsLoading(true);
-    const isOnline = await checkConnection();
-    setIsOffline(!isOnline);
+    
+    try {
+      const isOnline = await checkConnection();
+      setIsOffline(!isOnline);
 
-    if (isOnline) {
-      try {
-        // Load data from Supabase
-        const [peopleRes, villageRes, cityRes, dairyRes, paymentsRes] = await Promise.all([
+      if (isOnline) {
+        console.log('Loading data from Supabase for user:', user.id);
+        
+        // Load data from Supabase with error handling for each table
+        const [peopleRes, villageRes, cityRes, dairyRes, paymentsRes] = await Promise.allSettled([
           supabase.from('people').select('*').eq('user_id', user.id),
           supabase.from('village_entries').select('*').eq('user_id', user.id),
           supabase.from('city_entries').select('*').eq('user_id', user.id),
@@ -86,14 +105,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           supabase.from('payments').select('*').eq('user_id', user.id)
         ]);
 
+        // Helper function to extract data from settled promises
+        const extractData = (result: PromiseSettledResult<any>, tableName: string) => {
+          if (result.status === 'fulfilled' && !result.value.error) {
+            return result.value.data || [];
+          } else {
+            console.error(`Failed to load ${tableName}:`, result.status === 'fulfilled' ? result.value.error : result.reason);
+            return [];
+          }
+        };
+
         const cloudData: AppData = {
-          people: (peopleRes.data || []).map(p => ({
+          people: extractData(peopleRes, 'people').map((p: any) => ({
             id: p.id,
             name: p.name,
             value: p.value,
             category: p.category
           })),
-          villageEntries: (villageRes.data || []).map(v => ({
+          villageEntries: extractData(villageRes, 'village_entries').map((v: any) => ({
             id: v.id,
             personId: v.person_id,
             personName: v.person_name,
@@ -107,7 +136,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             rate: v.rate,
             amount: v.amount
           })),
-          cityEntries: (cityRes.data || []).map(c => ({
+          cityEntries: extractData(cityRes, 'city_entries').map((c: any) => ({
             id: c.id,
             personId: c.person_id,
             personName: c.person_name,
@@ -116,7 +145,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             rate: c.rate,
             amount: c.amount
           })),
-          dairyEntries: (dairyRes.data || []).map(d => ({
+          dairyEntries: extractData(dairyRes, 'dairy_entries').map((d: any) => ({
             id: d.id,
             personId: d.person_id,
             personName: d.person_name,
@@ -132,7 +161,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             meterAmount: d.meter_amount,
             totalAmount: d.total_amount
           })),
-          payments: (paymentsRes.data || []).map(p => ({
+          payments: extractData(paymentsRes, 'payments').map((p: any) => ({
             id: p.id,
             personId: p.person_id,
             personName: p.person_name,
@@ -144,17 +173,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           }))
         };
 
+        console.log('Successfully loaded cloud data:', {
+          people: cloudData.people.length,
+          villageEntries: cloudData.villageEntries.length,
+          cityEntries: cloudData.cityEntries.length,
+          dairyEntries: cloudData.dairyEntries.length,
+          payments: cloudData.payments.length
+        });
+
         setData(cloudData);
         setLocalData(cloudData); // Cache for offline use
         setLastSyncTime(new Date());
-      } catch (error) {
-        console.error('Failed to load data from cloud:', error);
+      } else {
+        console.log('Using cached offline data');
+        // Use cached offline data
         setData(localData);
-        setIsOffline(true);
       }
-    } else {
-      // Use cached offline data
+    } catch (error) {
+      console.error('Failed to load data:', error);
       setData(localData);
+      setIsOffline(true);
     }
 
     setIsLoading(false);
@@ -163,13 +201,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9);
 
   const syncData = async () => {
-    if (!user || isOffline) return;
+    if (!user) return;
+    
+    console.log('Starting data sync...');
 
     setSyncStatus('syncing');
     try {
-      await loadData();
-      setSyncStatus('idle');
-      setLastSyncTime(new Date());
+      // First check if we can connect
+      const isOnline = await checkConnection();
+      setIsOffline(!isOnline);
+      
+      if (isOnline) {
+        await loadData();
+        setSyncStatus('idle');
+        setLastSyncTime(new Date());
+        console.log('Sync completed successfully');
+      } else {
+        console.log('Cannot sync - offline');
+        setSyncStatus('error');
+      }
     } catch (error) {
       console.error('Sync failed:', error);
       setSyncStatus('error');

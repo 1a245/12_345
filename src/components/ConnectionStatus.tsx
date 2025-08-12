@@ -23,9 +23,9 @@ export function ConnectionStatus() {
     // Set connection details for debugging
     if (hasSupabaseCredentials()) {
       const url = import.meta.env.VITE_SUPABASE_URL;
-      setConnectionDetails(url ? `Connected to: ${url.split('//')[1]?.split('.')[0]}` : 'Invalid URL');
+      setConnectionDetails(url ? `${url.split('//')[1]?.split('.')[0]}.supabase.co` : 'Invalid URL');
     } else {
-      setConnectionDetails('No Supabase credentials configured');
+      setConnectionDetails('Configure .env file to enable sync');
     }
   }, [user, isOffline]);
 
@@ -34,7 +34,7 @@ export function ConnectionStatus() {
     if (!hasSupabaseCredentials()) {
       return (
         <div className="fixed top-4 right-4 z-50">
-          <div className="flex items-center gap-2 px-3 py-1 bg-orange-100 text-orange-800 border border-orange-200 rounded-full text-xs font-medium shadow-sm">
+          <div className="flex items-center gap-2 px-3 py-1 bg-orange-100 text-orange-800 border border-orange-200 rounded-full text-xs font-medium shadow-sm cursor-help" title="Configure Supabase credentials in .env file to enable cloud sync">
             <Database className="w-3 h-3" />
             <span>Local Only</span>
           </div>
@@ -44,7 +44,7 @@ export function ConnectionStatus() {
 
     return (
       <div className="fixed top-4 right-4 z-50">
-        <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 border border-green-200 rounded-full text-xs font-medium shadow-sm">
+        <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 border border-green-200 rounded-full text-xs font-medium shadow-sm cursor-help" title={`Connected to ${connectionDetails}`}>
           <Wifi className="w-3 h-3" />
           <span>Online</span>
           {activeDevices > 1 && (

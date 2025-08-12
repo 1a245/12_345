@@ -94,7 +94,7 @@ export function SetupGuide({ isOpen, onClose }: SetupGuideProps) {
                     <div className="flex-1">
                       <h5 className="font-medium text-gray-900 mb-2">Create Supabase Account</h5>
                       <p className="text-sm text-gray-600 mb-3">
-                        Go to Supabase and create a free account (no credit card required)
+                        Go to Supabase and create a free account. The database schema will be created automatically.
                       </p>
                       <a
                         href="https://supabase.com"
@@ -114,9 +114,12 @@ export function SetupGuide({ isOpen, onClose }: SetupGuideProps) {
                     </div>
                     <div className="flex-1">
                       <h5 className="font-medium text-gray-900 mb-2">Create New Project</h5>
-                      <p className="text-sm text-gray-600">
-                        Click "New Project" and give it a name like "M13 Business Management"
+                      <p className="text-sm text-gray-600 mb-3">
+                        Click "New Project", name it "M13 Business Management", and wait 2-3 minutes for setup
                       </p>
+                      <div className="bg-blue-50 p-3 rounded border text-sm text-blue-800">
+                        💡 <strong>Tip:</strong> Choose a region closest to your location for better performance
+                      </div>
                     </div>
                   </div>
 
@@ -165,11 +168,14 @@ export function SetupGuide({ isOpen, onClose }: SetupGuideProps) {
                     <div className="flex-1">
                       <h5 className="font-medium text-gray-900 mb-2">Configure Environment</h5>
                       <p className="text-sm text-gray-600 mb-3">
-                        Create or update your <code className="bg-gray-100 px-1 rounded">.env</code> file with:
+                        Update your <code className="bg-gray-100 px-1 rounded">.env</code> file in the project root:
                       </p>
                       <div className="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm overflow-x-auto">
                         <div>VITE_SUPABASE_URL=https://your-project.supabase.co</div>
                         <div>VITE_SUPABASE_ANON_KEY=your_anon_key_here</div>
+                      </div>
+                      <div className="mt-2 bg-yellow-50 p-3 rounded border text-sm text-yellow-800">
+                        ⚠️ <strong>Important:</strong> Replace the placeholder values with your actual credentials
                       </div>
                     </div>
                   </div>
@@ -181,20 +187,34 @@ export function SetupGuide({ isOpen, onClose }: SetupGuideProps) {
                     <div className="flex-1">
                       <h5 className="font-medium text-gray-900 mb-2">Restart Application</h5>
                       <p className="text-sm text-gray-600">
-                        Save the .env file and restart your development server. The app will automatically detect the configuration and enable multi-device sync.
+                        Save the .env file and restart with <code className="bg-gray-100 px-1 rounded">npm run dev</code>. 
+                        Look for "Online" status in the top-right corner.
                       </p>
+                      <div className="mt-2 bg-green-50 p-3 rounded border text-sm text-green-800">
+                        ✅ <strong>Success:</strong> You should see "Online" instead of "Local Only"
+                      </div>
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h5 className="font-medium text-blue-900 mb-2">🔄 How Sync Works:</h5>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• <strong>Automatic:</strong> Data syncs in real-time when online</li>
+                  <li>• <strong>Offline-first:</strong> App works without internet</li>
+                  <li>• <strong>Multi-device:</strong> Same login on all devices</li>
+                  <li>• <strong>Secure:</strong> Your data is encrypted and isolated</li>
+                </ul>
               </div>
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <h5 className="font-medium text-yellow-900 mb-2">Important Notes:</h5>
                 <ul className="text-sm text-yellow-800 space-y-1">
                   <li>• Your existing local data will be preserved</li>
-                  <li>• The first device to sync will upload all local data to the cloud</li>
-                  <li>• Subsequent devices will download and sync with the cloud data</li>
-                  <li>• All data is encrypted and secure</li>
+                  <li>• First device uploads local data to cloud</li>
+                  <li>• Other devices download and sync automatically</li>
+                  <li>• Default login: admin@m13.com / admin123</li>
                 </ul>
               </div>
             </div>

@@ -188,7 +188,7 @@ export function SetupGuide({ isOpen, onClose }: SetupGuideProps) {
                       <h5 className="font-medium text-gray-900 mb-2">Restart Application</h5>
                       <p className="text-sm text-gray-600">
                         Save the .env file and restart with <code className="bg-gray-100 px-1 rounded">npm run dev</code>. 
-                        Look for "Online" status in the top-right corner.
+                        Look for "Online\" status in the top-right corner.
                       </p>
                       <div className="mt-2 bg-green-50 p-3 rounded border text-sm text-green-800">
                         ✅ <strong>Success:</strong> You should see "Online" instead of "Local Only"

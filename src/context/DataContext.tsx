@@ -64,18 +64,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       console.log('🔍 Testing Supabase connection...');
       
-      // Test connection with a simple query and timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-      
-      const { error } = await supabase
+      // Test connection with a simple query and proper timeout handling
+      const connectionPromise = supabase
         .from('users')
         .select('count')
-        .limit(1)
-        .abortSignal(controller.signal);
-
-      clearTimeout(timeoutId);
-
+        .limit(1);
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Connection timeout')), 8000);
+      });
+      
+      const { error } = await Promise.race([connectionPromise, timeoutPromise]);
+      
       if (error) {
         console.log('❌ Supabase query failed:', error.message);
         return false;
@@ -83,8 +83,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       console.log('✅ Supabase connection successful');
       return true;
-    } catch (fetchError) {
-      console.log('❌ Connection test failed:', fetchError);
+    } catch (error: any) {
+      console.log('❌ Connection test failed:', error.message || error);
+      // Handle specific error types
+      if (error.name === 'AbortError' || error.message === 'Connection timeout') {
+        console.log('Connection timed out - using offline mode');
+      } else if (error.message === 'Failed to fetch') {
+        console.log('Network error - check internet connection');
+      }
       return false;
     }
   };

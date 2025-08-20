@@ -42,18 +42,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log('🔍 Testing Supabase connection for auth...');
       
-      // Try to connect to Supabase with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-      
       try {
-        const { data, error } = await supabase
+        // Test connection with proper timeout handling
+        const connectionPromise = supabase
           .from('users')
           .select('count')
-          .limit(1)
-          .abortSignal(controller.signal);
+          .limit(1);
         
-        clearTimeout(timeoutId);
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Connection timeout')), 8000);
+        });
+        
+        const { data, error } = await Promise.race([connectionPromise, timeoutPromise]);
         
         if (error) {
           console.log('❌ Supabase auth connection failed:', error.message);
@@ -77,8 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        console.log('❌ Network/timeout error:', fetchError.message);
+        console.log('❌ Network/timeout error:', fetchError.message || fetchError);
         setOfflineMode(true);
         setUser(offlineUser);
       }

@@ -68,33 +68,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
       
-      const testSupabaseConnection = async () => {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+      const { error } = await supabase
+        .from('users')
+        .select('count')
+        .limit(1)
+        .abortSignal(controller.signal);
 
-  try {
-    const { error } = await supabase
-      .from('users')
-      .select('count')
-      .limit(1)
-      .abortSignal(controller.signal);
+      clearTimeout(timeoutId);
 
-    clearTimeout(timeoutId);
+      if (error) {
+        console.log('❌ Supabase query failed:', error.message);
+        return false;
+      }
 
-    if (error) {
-      console.log('❌ Supabase query failed:', error.message);
+      console.log('✅ Supabase connection successful');
+      return true;
+    } catch (fetchError) {
+      console.log('❌ Connection test failed:', fetchError);
       return false;
     }
-
-    console.log('✅ Supabase connection successful');
-    return true;
-  } catch (fetchError) {
-    clearTimeout(timeoutId);
-    console.log('❌ Connection test failed:', fetchError.message);
-    return false;
-  }
-};
-
   };
 
   const loadData = async () => {

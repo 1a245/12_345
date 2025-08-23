@@ -234,7 +234,5 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = false }) => 
   );
 };
 
-export default DebugPanel;
-
-// Also provide named export for compatibility
-export { DebugPanel };
+// Named export only to match existing import
+// Remove default export to avoid conflicts

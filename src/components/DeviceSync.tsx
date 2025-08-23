@@ -75,7 +75,13 @@ export function DeviceSync() {
   };
 
   const handleManualSync = async () => {
-    await syncData();
+    console.log('🔄 Manual sync triggered');
+    try {
+      await syncData();
+      console.log('✅ Manual sync completed');
+    } catch (error) {
+      console.error('❌ Manual sync failed:', error);
+    }
   };
 
   if (!user) return null;

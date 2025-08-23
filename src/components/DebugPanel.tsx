@@ -75,16 +75,16 @@ export function DebugPanel() {
       // Test 2: Supabase client connection
       const test2Start = Date.now();
       try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('count')
+        const { count, error } = await supabase
+          .from('people')
+          .select('*', { count: 'exact', head: true })
           .limit(1);
         
         results.tests.push({
           name: 'Supabase Client Query',
           status: error ? 'FAIL' : 'PASS',
           time: Date.now() - test2Start,
-          details: error ? error.message : 'Query successful'
+          details: error ? error.message : `Query successful (${count || 0} records)`
         });
       } catch (error: any) {
         results.tests.push({
@@ -131,6 +131,33 @@ export function DebugPanel() {
           name: 'Internet Connectivity',
           status: 'FAIL',
           time: Date.now() - test4Start,
+          details: error.message
+        });
+      }
+
+      // Test 5: Local data check
+      const test5Start = Date.now();
+      try {
+        const localDataStr = localStorage.getItem('m13-offline-data');
+        const localData = localDataStr ? JSON.parse(localDataStr) : null;
+        const hasLocalData = localData && (
+          (localData.people && localData.people.length > 0) ||
+          (localData.villageEntries && localData.villageEntries.length > 0) ||
+          (localData.cityEntries && localData.cityEntries.length > 0) ||
+          (localData.dairyEntries && localData.dairyEntries.length > 0) ||
+          (localData.payments && localData.payments.length > 0)
+        );
+        results.tests.push({
+          name: 'Local Data Check',
+          status: 'PASS',
+          time: Date.now() - test5Start,
+          details: hasLocalData ? `Local data found: ${JSON.stringify(Object.keys(localData || {}).map(key => `${key}: ${localData[key]?.length || 0}`).join(', '))}` : 'No local data found'
+        });
+      } catch (error: any) {
+        results.tests.push({
+          name: 'Local Data Check',
+          status: 'FAIL',
+          time: Date.now() - test5Start,
           details: error.message
         });
       }

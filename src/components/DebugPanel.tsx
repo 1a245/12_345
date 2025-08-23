@@ -1,110 +1,240 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 
-interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
+interface DebugPanelProps {
+  isVisible?: boolean;
 }
 
-interface State {
-  hasError: boolean;
-  error?: Error;
-  errorInfo?: ErrorInfo;
+interface ConnectionInfo {
+  status: 'online' | 'offline' | 'checking';
+  lastSync: string | null;
+  syncStatus: string;
+  dataCount: {
+    people: number;
+    villageEntries: number;
+    cityEntries: number;
+    dairyEntries: number;
+    payments: number;
+  };
 }
 
-class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
-    hasError: false
-  };
+export const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = false }) => {
+  const [showPanel, setShowPanel] = useState(isVisible);
+  const [connectionInfo, setConnectionInfo] = useState<ConnectionInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  public static getDerivedStateFromError(error: Error): State {
-    // Update state so the next render will show the fallback UI
-    return { hasError: true, error };
-  }
+  // Safely get context data with error handling
+  const dataContext = useData();
+  const authContext = useAuth();
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
-    this.setState({
-      error,
-      errorInfo
-    });
-  }
-
-  private handleReset = () => {
-    this.setState({ hasError: false, error: undefined, errorInfo: undefined });
-  };
-
-  private handleReload = () => {
-    window.location.reload();
-  };
-
-  public render() {
-    if (this.state.hasError) {
-      // Custom fallback UI or use the provided one
-      if (this.props.fallback) {
-        return this.props.fallback;
+  useEffect(() => {
+    try {
+      if (!dataContext || !authContext) {
+        setError('Context not available');
+        return;
       }
 
-      return (
-        <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full">
-            <div className="flex items-center mb-4">
-              <div className="bg-red-100 rounded-full p-2 mr-3">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Something went wrong</h2>
-                <p className="text-gray-600">The application encountered an unexpected error.</p>
-              </div>
+      const info: ConnectionInfo = {
+        status: dataContext.isOffline ? 'offline' : 'online',
+        lastSync: dataContext.lastSyncTime ? dataContext.lastSyncTime.toLocaleString() : null,
+        syncStatus: dataContext.syncStatus || 'idle',
+        dataCount: {
+          people: dataContext.data?.people?.length || 0,
+          villageEntries: dataContext.data?.villageEntries?.length || 0,
+          cityEntries: dataContext.data?.cityEntries?.length || 0,
+          dairyEntries: dataContext.data?.dairyEntries?.length || 0,
+          payments: dataContext.data?.payments?.length || 0,
+        }
+      };
+
+      setConnectionInfo(info);
+      setError(null);
+    } catch (err) {
+      console.error('Error in DebugPanel:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error occurred');
+    }
+  }, [
+    dataContext?.isOffline,
+    dataContext?.lastSyncTime,
+    dataContext?.syncStatus,
+    dataContext?.data,
+    authContext?.user
+  ]);
+
+  const handleSyncData = async () => {
+    try {
+      if (dataContext?.syncData) {
+        await dataContext.syncData();
+      }
+    } catch (err) {
+      console.error('Sync error:', err);
+      setError(err instanceof Error ? err.message : 'Sync failed');
+    }
+  };
+
+  const handleClearLocalData = () => {
+    try {
+      if (dataContext?.clearLocalData) {
+        dataContext.clearLocalData();
+      }
+    } catch (err) {
+      console.error('Clear data error:', err);
+      setError(err instanceof Error ? err.message : 'Clear data failed');
+    }
+  };
+
+  if (!showPanel) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50">
+        <button
+          onClick={() => setShowPanel(true)}
+          className="bg-gray-800 text-white px-3 py-2 rounded-lg text-sm hover:bg-gray-700 transition-colors"
+          aria-label="Show debug panel"
+        >
+          🐛 Debug
+        </button>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg max-w-sm">
+        <div className="flex justify-between items-start">
+          <div>
+            <strong className="font-bold">Debug Panel Error:</strong>
+            <p className="text-sm mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => setShowPanel(false)}
+            className="text-red-700 hover:text-red-900"
+            aria-label="Close debug panel"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50 bg-white border border-gray-300 shadow-lg rounded-lg p-4 max-w-sm">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-semibold text-gray-800">Debug Panel</h3>
+        <button
+          onClick={() => setShowPanel(false)}
+          className="text-gray-500 hover:text-gray-700"
+          aria-label="Close debug panel"
+        >
+          ×
+        </button>
+      </div>
+
+      {connectionInfo && (
+        <div className="space-y-2 text-sm">
+          {/* Connection Status */}
+          <div className="flex justify-between">
+            <span className="font-medium">Status:</span>
+            <span className={`capitalize ${
+              connectionInfo.status === 'online' ? 'text-green-600' : 'text-red-600'
+            }`}>
+              {connectionInfo.status === 'online' ? '🟢 Online' : '🔴 Offline'}
+            </span>
+          </div>
+
+          {/* User Info */}
+          <div className="flex justify-between">
+            <span className="font-medium">User:</span>
+            <span className="text-gray-600 truncate ml-2">
+              {authContext?.user?.email || 'Not logged in'}
+            </span>
+          </div>
+
+          {/* Sync Status */}
+          <div className="flex justify-between">
+            <span className="font-medium">Sync:</span>
+            <span className={`capitalize ${
+              connectionInfo.syncStatus === 'syncing' ? 'text-blue-600' : 
+              connectionInfo.syncStatus === 'error' ? 'text-red-600' : 'text-gray-600'
+            }`}>
+              {connectionInfo.syncStatus === 'syncing' && '🔄 '}
+              {connectionInfo.syncStatus === 'error' && '❌ '}
+              {connectionInfo.syncStatus}
+            </span>
+          </div>
+
+          {/* Last Sync */}
+          {connectionInfo.lastSync && (
+            <div className="flex justify-between">
+              <span className="font-medium">Last Sync:</span>
+              <span className="text-gray-600 text-xs">
+                {connectionInfo.lastSync}
+              </span>
             </div>
+          )}
 
-            <div className="bg-gray-50 rounded-md p-3 mb-4">
-              <p className="text-sm font-medium text-gray-700 mb-1">Error Details:</p>
-              <p className="text-sm text-gray-600 font-mono break-all">
-                {this.state.error?.message || 'Unknown error occurred'}
-              </p>
+          {/* Data Counts */}
+          <div className="border-t pt-2 mt-2">
+            <div className="font-medium mb-1">Local Data:</div>
+            <div className="grid grid-cols-2 gap-1 text-xs">
+              <div>People: {connectionInfo.dataCount.people}</div>
+              <div>Village: {connectionInfo.dataCount.villageEntries}</div>
+              <div>City: {connectionInfo.dataCount.cityEntries}</div>
+              <div>Dairy: {connectionInfo.dataCount.dairyEntries}</div>
+              <div>Payments: {connectionInfo.dataCount.payments}</div>
             </div>
+          </div>
 
-            {/* Show component stack in development */}
-            {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
-              <details className="bg-gray-50 rounded-md p-3 mb-4">
-                <summary className="text-sm font-medium text-gray-700 cursor-pointer">
-                  Component Stack (Dev Only)
-                </summary>
-                <pre className="text-xs text-gray-600 mt-2 overflow-auto max-h-32">
-                  {this.state.errorInfo.componentStack}
-                </pre>
-              </details>
-            )}
+          {/* Action Buttons */}
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={handleSyncData}
+              disabled={dataContext?.isLoading || connectionInfo.syncStatus === 'syncing'}
+              className="flex-1 bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              {connectionInfo.syncStatus === 'syncing' ? 'Syncing...' : 'Retry Sync'}
+            </button>
+            
+            <button
+              onClick={handleClearLocalData}
+              className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
+              title="Clear all local data"
+            >
+              Clear
+            </button>
+          </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={this.handleReset}
-                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md transition-colors"
-              >
-                Try Again
-              </button>
-              <button
-                onClick={this.handleReload}
-                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-md transition-colors"
-              >
-                Reload Page
-              </button>
-            </div>
-
-            <div className="mt-4 p-3 bg-blue-50 rounded-md">
-              <p className="text-sm text-blue-800">
-                <strong>💡 Tip:</strong> If this error persists, try clearing your browser cache or check the browser console for more details.
-              </p>
+          {/* Storage Mode Info */}
+          <div className="border-t pt-2 mt-2">
+            <div className="text-xs text-gray-500">
+              {connectionInfo.status === 'offline' ? (
+                <>
+                  <strong>Local Storage Mode</strong><br />
+                  Data stored locally. Configure Supabase for sync.
+                </>
+              ) : (
+                <>
+                  <strong>Multi-Device Sync</strong><br />
+                  Data synced to cloud automatically.
+                </>
+              )}
             </div>
           </div>
         </div>
-      );
-    }
+      )}
 
-    return this.props.children;
-  }
-}
+      {/* Loading State */}
+      {dataContext?.isLoading && (
+        <div className="text-center text-sm text-gray-500 mt-2">
+          Loading data...
+        </div>
+      )}
+    </div>
+  );
+};
 
-export default ErrorBoundary;
+export default DebugPanel;
+
+// Also provide named export for compatibility
+export { DebugPanel };

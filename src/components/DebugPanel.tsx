@@ -1,318 +1,110 @@
-import React, { useState, useEffect } from 'react';
-import { Bug, Copy, Check, RefreshCw, Database, Wifi, AlertTriangle } from 'lucide-react';
-import { supabase, hasSupabaseCredentials } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
-import { useData } from '../context/DataContext';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 
-export function DebugPanel() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [testResults, setTestResults] = useState<any>(null);
-  const [testing, setTesting] = useState(false);
-  const { user } = useAuth();
-  const { isOffline, syncStatus } = useData();
+interface Props {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
 
-  const debugInfo = {
-    // Environment Variables
-    supabaseUrl: import.meta.env.VITE_SUPABASE_URL || 'Not set',
-    supabaseKey: import.meta.env.VITE_SUPABASE_ANON_KEY ? 
-      `${import.meta.env.VITE_SUPABASE_ANON_KEY.substring(0, 20)}...` : 'Not set',
-    
-    // Credentials Check
-    hasCredentials: hasSupabaseCredentials(),
-    
-    // App State
-    isAuthenticated: !!user,
-    userEmail: user?.email || 'Not logged in',
-    isOffline,
-    syncStatus,
-    
-    // Browser Info
-    userAgent: navigator.userAgent,
-    online: navigator.onLine,
-    
-    // Network Info
-    connection: (navigator as any).connection ? {
-      effectiveType: (navigator as any).connection.effectiveType,
-      downlink: (navigator as any).connection.downlink,
-      rtt: (navigator as any).connection.rtt
-    } : 'Not available'
+interface State {
+  hasError: boolean;
+  error?: Error;
+  errorInfo?: ErrorInfo;
+}
+
+class ErrorBoundary extends Component<Props, State> {
+  public state: State = {
+    hasError: false
   };
 
-  const runConnectionTest = async () => {
-    setTesting(true);
-    const results: any = {
-      timestamp: new Date().toISOString(),
-      tests: []
-    };
-
-    try {
-      // Test 1: Basic fetch to Supabase
-      const test1Start = Date.now();
-      try {
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`, {
-          method: 'HEAD',
-          headers: {
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-          }
-        });
-        results.tests.push({
-          name: 'Basic Supabase Connection',
-          status: response.ok ? 'PASS' : 'FAIL',
-          time: Date.now() - test1Start,
-          details: `Status: ${response.status} ${response.statusText}`
-        });
-      } catch (error: any) {
-        results.tests.push({
-          name: 'Basic Supabase Connection',
-          status: 'FAIL',
-          time: Date.now() - test1Start,
-          details: error.message
-        });
-      }
-
-      // Test 2: Supabase client connection
-      const test2Start = Date.now();
-      try {
-        const { count, error } = await supabase
-          .from('people')
-          .select('*', { count: 'exact', head: true })
-          .limit(1);
-        
-        results.tests.push({
-          name: 'Supabase Client Query',
-          status: error ? 'FAIL' : 'PASS',
-          time: Date.now() - test2Start,
-          details: error ? error.message : `Query successful (${count || 0} records)`
-        });
-      } catch (error: any) {
-        results.tests.push({
-          name: 'Supabase Client Query',
-          status: 'FAIL',
-          time: Date.now() - test2Start,
-          details: error.message
-        });
-      }
-
-      // Test 3: DNS Resolution
-      const test3Start = Date.now();
-      try {
-        const url = new URL(import.meta.env.VITE_SUPABASE_URL);
-        const response = await fetch(`https://dns.google/resolve?name=${url.hostname}&type=A`);
-        const dnsData = await response.json();
-        results.tests.push({
-          name: 'DNS Resolution',
-          status: dnsData.Status === 0 ? 'PASS' : 'FAIL',
-          time: Date.now() - test3Start,
-          details: dnsData.Status === 0 ? `Resolved to: ${dnsData.Answer?.[0]?.data}` : 'DNS resolution failed'
-        });
-      } catch (error: any) {
-        results.tests.push({
-          name: 'DNS Resolution',
-          status: 'FAIL',
-          time: Date.now() - test3Start,
-          details: error.message
-        });
-      }
-
-      // Test 4: Network latency
-      const test4Start = Date.now();
-      try {
-        await fetch('https://www.google.com/favicon.ico', { method: 'HEAD' });
-        results.tests.push({
-          name: 'Internet Connectivity',
-          status: 'PASS',
-          time: Date.now() - test4Start,
-          details: 'Internet connection working'
-        });
-      } catch (error: any) {
-        results.tests.push({
-          name: 'Internet Connectivity',
-          status: 'FAIL',
-          time: Date.now() - test4Start,
-          details: error.message
-        });
-      }
-
-      // Test 5: Local data check
-      const test5Start = Date.now();
-      try {
-        const localDataStr = localStorage.getItem('m13-offline-data');
-        const localData = localDataStr ? JSON.parse(localDataStr) : null;
-        const hasLocalData = localData && (
-          (localData.people && localData.people.length > 0) ||
-          (localData.villageEntries && localData.villageEntries.length > 0) ||
-          (localData.cityEntries && localData.cityEntries.length > 0) ||
-          (localData.dairyEntries && localData.dairyEntries.length > 0) ||
-          (localData.payments && localData.payments.length > 0)
-        );
-        results.tests.push({
-          name: 'Local Data Check',
-          status: 'PASS',
-          time: Date.now() - test5Start,
-          details: hasLocalData ? `Local data found: ${JSON.stringify(Object.keys(localData || {}).map(key => `${key}: ${localData[key]?.length || 0}`).join(', '))}` : 'No local data found'
-        });
-      } catch (error: any) {
-        results.tests.push({
-          name: 'Local Data Check',
-          status: 'FAIL',
-          time: Date.now() - test5Start,
-          details: error.message
-        });
-      }
-
-    } catch (error: any) {
-      results.error = error.message;
-    }
-
-    setTestResults(results);
-    setTesting(false);
-  };
-
-  const copyDebugInfo = async () => {
-    const info = JSON.stringify({ debugInfo, testResults }, null, 2);
-    try {
-      await navigator.clipboard.writeText(info);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy:', error);
-    }
-  };
-
-  if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 p-3 bg-gray-800 text-white rounded-full shadow-lg hover:bg-gray-700 transition-colors z-50"
-        title="Debug Panel"
-      >
-        <Bug className="w-5 h-5" />
-      </button>
-    );
+  public static getDerivedStateFromError(error: Error): State {
+    // Update state so the next render will show the fallback UI
+    return { hasError: true, error };
   }
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <Bug className="w-6 h-6 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Debug Panel</h3>
-          </div>
-          <button
-            onClick={() => setIsOpen(false)}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            ×
-          </button>
-        </div>
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+    this.setState({
+      error,
+      errorInfo
+    });
+  }
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Environment Info */}
-            <div className="space-y-4">
-              <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Database className="w-4 h-4" />
-                Environment
-              </h4>
-              <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
-                <div><strong>Supabase URL:</strong> {debugInfo.supabaseUrl}</div>
-                <div><strong>Supabase Key:</strong> {debugInfo.supabaseKey}</div>
-                <div><strong>Has Credentials:</strong> 
-                  <span className={`ml-2 px-2 py-1 rounded text-xs ${
-                    debugInfo.hasCredentials ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {debugInfo.hasCredentials ? 'YES' : 'NO'}
-                  </span>
-                </div>
+  private handleReset = () => {
+    this.setState({ hasError: false, error: undefined, errorInfo: undefined });
+  };
+
+  private handleReload = () => {
+    window.location.reload();
+  };
+
+  public render() {
+    if (this.state.hasError) {
+      // Custom fallback UI or use the provided one
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
+      return (
+        <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full">
+            <div className="flex items-center mb-4">
+              <div className="bg-red-100 rounded-full p-2 mr-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
               </div>
-
-              <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Wifi className="w-4 h-4" />
-                Connection Status
-              </h4>
-              <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
-                <div><strong>User:</strong> {debugInfo.userEmail}</div>
-                <div><strong>Is Offline:</strong> 
-                  <span className={`ml-2 px-2 py-1 rounded text-xs ${
-                    debugInfo.isOffline ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'
-                  }`}>
-                    {debugInfo.isOffline ? 'YES' : 'NO'}
-                  </span>
-                </div>
-                <div><strong>Sync Status:</strong> {debugInfo.syncStatus}</div>
-                <div><strong>Browser Online:</strong> {debugInfo.online ? 'YES' : 'NO'}</div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Something went wrong</h2>
+                <p className="text-gray-600">The application encountered an unexpected error.</p>
               </div>
             </div>
 
-            {/* Connection Tests */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" />
-                  Connection Tests
-                </h4>
-                <button
-                  onClick={runConnectionTest}
-                  disabled={testing}
-                  className="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-blue-400"
-                >
-                  <RefreshCw className={`w-3 h-3 ${testing ? 'animate-spin' : ''}`} />
-                  {testing ? 'Testing...' : 'Run Tests'}
-                </button>
-              </div>
-
-              {testResults && (
-                <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                  <div className="text-xs text-gray-500">
-                    Last run: {new Date(testResults.timestamp).toLocaleString()}
-                  </div>
-                  {testResults.tests.map((test: any, index: number) => (
-                    <div key={index} className="border-l-4 pl-3 py-2" style={{
-                      borderColor: test.status === 'PASS' ? '#10b981' : '#ef4444'
-                    }}>
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm">{test.name}</span>
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          test.status === 'PASS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {test.status}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-600 mt-1">
-                        {test.details} ({test.time}ms)
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="bg-gray-50 rounded-md p-3 mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-1">Error Details:</p>
+              <p className="text-sm text-gray-600 font-mono break-all">
+                {this.state.error?.message || 'Unknown error occurred'}
+              </p>
             </div>
-          </div>
 
-          {/* Network Info */}
-          <div className="mt-6">
-            <h4 className="font-semibold text-gray-900 mb-3">Network Information</h4>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <pre className="text-xs text-gray-700 whitespace-pre-wrap">
-                {JSON.stringify(debugInfo.connection, null, 2)}
-              </pre>
+            {/* Show component stack in development */}
+            {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
+              <details className="bg-gray-50 rounded-md p-3 mb-4">
+                <summary className="text-sm font-medium text-gray-700 cursor-pointer">
+                  Component Stack (Dev Only)
+                </summary>
+                <pre className="text-xs text-gray-600 mt-2 overflow-auto max-h-32">
+                  {this.state.errorInfo.componentStack}
+                </pre>
+              </details>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={this.handleReset}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={this.handleReload}
+                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              >
+                Reload Page
+              </button>
             </div>
-          </div>
 
-          {/* Actions */}
-          <div className="mt-6 flex gap-3">
-            <button
-              onClick={copyDebugInfo}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-            >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Copied!' : 'Copy Debug Info'}
-            </button>
+            <div className="mt-4 p-3 bg-blue-50 rounded-md">
+              <p className="text-sm text-blue-800">
+                <strong>💡 Tip:</strong> If this error persists, try clearing your browser cache or check the browser console for more details.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
+      );
+    }
+
+    return this.props.children;
+  }
 }
+
+export default ErrorBoundary;

@@ -137,33 +137,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: 'Registration not available in offline mode' };
     }
 
-    try {
-      // Check if user already exists
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single();
+    
+       try {
+    const { data, error } = await supabase.auth.signUp({
+      email: email,
+      password: password,
+    })
 
-      if (existingUser) {
-        return { success: false, error: 'User with this email already exists' };
-      }
+    if (error) {
+      throw error
+    }
 
-      const passwordHash = await hashPassword(password);
-      
-      const { data: newUser, error } = await supabase
-        .from('users')
-        .insert({
-          email,
-          password_hash: passwordHash
-        })
-        .select('id, email')
-        .single();
-
-      if (error || !newUser) {
-        return { success: false, error: 'Registration failed. Please try again.' };
-      }
-
+    console.log('User signed up successfully:', data)
+    return { success: true, data }
+    
+  } catch (error) {
+    console.error('Error signing up:', error.message)
+    return { success: false, error: error.message }
+  }
       setUser(newUser);
       return { success: true };
     } catch (error) {

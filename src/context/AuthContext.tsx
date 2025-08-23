@@ -133,9 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    if (offlineMode) {
-      return { success: false, error: 'Registration not available in offline mode' };
-    }
+
 
     
        try {
@@ -155,11 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.error('Error signing up:', error.message)
     return { success: false, error: error.message }
   }
-      setUser(newUser);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: 'Registration failed. Please try again.' };
-    }
+    
   };
 
   const logout = async () => {

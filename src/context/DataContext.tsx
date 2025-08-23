@@ -109,6 +109,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (isOnline) {
         console.log('Loading data from Supabase for user:', user.id);
         
+        // Check if this is the first time loading cloud data
+        const { data: existingPeople } = await supabase
+          .from('people')
+          .select('count')
+          .eq('user_id', user.id)
+          .single();
+        
+        const isFirstTimeSync = !existingPeople || existingPeople.count === 0;
+        
+        // If first time and we have local data, upload it first
+        if (isFirstTimeSync && (localData.people.length > 0 || 
+            localData.villageEntries.length > 0 || 
+            localData.cityEntries.length > 0 || 
+            localData.dairyEntries.length > 0 || 
+            localData.payments.length > 0)) {
+          console.log('🔄 First time sync - uploading local data to cloud...');
+          await uploadLocalDataToCloud();
+        }
+        
         // Load data from Supabase with error handling for each table
         const [peopleRes, villageRes, cityRes, dairyRes, paymentsRes] = await Promise.allSettled([
           supabase.from('people').select('*').eq('user_id', user.id),
@@ -211,6 +230,150 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   };
 
+  const uploadLocalDataToCloud = async () => {
+    if (!user || isOffline) return;
+    
+    console.log('📤 Uploading local data to cloud...');
+    
+    try {
+      // Upload people
+      if (localData.people.length > 0) {
+        const peopleToUpload = localData.people.map(person => ({
+          id: person.id,
+          user_id: user.id,
+          name: person.name,
+          value: person.value,
+          category: person.category
+        }));
+        
+        const { error: peopleError } = await supabase
+          .from('people')
+          .upsert(peopleToUpload, { onConflict: 'id' });
+        
+        if (peopleError) {
+          console.error('Failed to upload people:', peopleError);
+        } else {
+          console.log(`✅ Uploaded ${peopleToUpload.length} people`);
+        }
+      }
+      
+      // Upload village entries
+      if (localData.villageEntries.length > 0) {
+        const villageEntriesToUpload = localData.villageEntries.map(entry => ({
+          id: entry.id,
+          user_id: user.id,
+          person_id: entry.personId,
+          person_name: entry.personName,
+          date: entry.date,
+          m_milk: entry.mMilk,
+          m_fat: entry.mFat,
+          e_milk: entry.eMilk,
+          e_fat: entry.eFat,
+          m_fat_kg: entry.mFatKg,
+          e_fat_kg: entry.eFatKg,
+          rate: entry.rate,
+          amount: entry.amount
+        }));
+        
+        const { error: villageError } = await supabase
+          .from('village_entries')
+          .upsert(villageEntriesToUpload, { onConflict: 'id' });
+        
+        if (villageError) {
+          console.error('Failed to upload village entries:', villageError);
+        } else {
+          console.log(`✅ Uploaded ${villageEntriesToUpload.length} village entries`);
+        }
+      }
+      
+      // Upload city entries
+      if (localData.cityEntries.length > 0) {
+        const cityEntriesToUpload = localData.cityEntries.map(entry => ({
+          id: entry.id,
+          user_id: user.id,
+          person_id: entry.personId,
+          person_name: entry.personName,
+          date: entry.date,
+          value: entry.value,
+          rate: entry.rate,
+          amount: entry.amount
+        }));
+        
+        const { error: cityError } = await supabase
+          .from('city_entries')
+          .upsert(cityEntriesToUpload, { onConflict: 'id' });
+        
+        if (cityError) {
+          console.error('Failed to upload city entries:', cityError);
+        } else {
+          console.log(`✅ Uploaded ${cityEntriesToUpload.length} city entries`);
+        }
+      }
+      
+      // Upload dairy entries
+      if (localData.dairyEntries.length > 0) {
+        const dairyEntriesToUpload = localData.dairyEntries.map(entry => ({
+          id: entry.id,
+          user_id: user.id,
+          person_id: entry.personId,
+          person_name: entry.personName,
+          date: entry.date,
+          session: entry.session,
+          milk: entry.milk,
+          fat: entry.fat,
+          meter: entry.meter,
+          rate: entry.rate,
+          fat_kg: entry.fatKg,
+          meter_kg: entry.meterKg,
+          fat_amount: entry.fatAmount,
+          meter_amount: entry.meterAmount,
+          total_amount: entry.totalAmount
+        }));
+        
+        const { error: dairyError } = await supabase
+          .from('dairy_entries')
+          .upsert(dairyEntriesToUpload, { onConflict: 'id' });
+        
+        if (dairyError) {
+          console.error('Failed to upload dairy entries:', dairyError);
+        } else {
+          console.log(`✅ Uploaded ${dairyEntriesToUpload.length} dairy entries`);
+        }
+      }
+      
+      // Upload payments
+      if (localData.payments.length > 0) {
+        const paymentsToUpload = localData.payments.map(payment => ({
+          id: payment.id,
+          user_id: user.id,
+          person_id: payment.personId,
+          person_name: payment.personName,
+          date: payment.date,
+          amount: payment.amount,
+          comment: payment.comment,
+          type: payment.type,
+          category: payment.category
+        }));
+        
+        const { error: paymentsError } = await supabase
+          .from('payments')
+          .upsert(paymentsToUpload, { onConflict: 'id' });
+        
+        if (paymentsError) {
+          console.error('Failed to upload payments:', paymentsError);
+        } else {
+          console.log(`✅ Uploaded ${paymentsToUpload.length} payments`);
+        }
+      }
+      
+      console.log('🎉 Local data upload completed successfully!');
+      
+    } catch (error) {
+      console.error('❌ Failed to upload local data:', error);
+      throw error;
+    }
+  };
+
   const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9);
 
   const syncData = async () => {
@@ -225,6 +388,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setIsOffline(!isOnline);
       
       if (isOnline) {
+        // Upload any pending local changes first
+        await uploadLocalDataToCloud();
+        
+        // Then reload data from cloud
         await loadData();
         setSyncStatus('idle');
         setLastSyncTime(new Date());
@@ -251,31 +418,40 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       people: [...prev.people, newPerson]
     }));
 
+    // Update local cache first
+    setLocalData(prev => ({
+      ...prev,
+      people: [...prev.people, newPerson]
+    }));
+
     if (!isOffline) {
       try {
-        await supabase.from('people').insert({
+        const { error } = await supabase.from('people').upsert({
           id: newPerson.id,
           user_id: user.id,
           name: person.name,
           value: person.value,
           category: person.category
-        });
+        }, { onConflict: 'id' });
+        
+        if (error) {
+          console.error('Failed to sync person to cloud:', error);
+        }
       } catch (error) {
         console.error('Failed to sync person to cloud:', error);
       }
     }
-
-    // Update local cache
-    setLocalData(prev => ({
-      ...prev,
-      people: [...prev.people, newPerson]
-    }));
   };
 
   const updatePerson = async (id: string, updatedPerson: Partial<Person>) => {
     if (!user) return;
 
     setData(prev => ({
+      ...prev,
+      people: prev.people.map(p => p.id === id ? { ...p, ...updatedPerson } : p)
+    }));
+
+    setLocalData(prev => ({
       ...prev,
       people: prev.people.map(p => p.id === id ? { ...p, ...updatedPerson } : p)
     }));
@@ -296,17 +472,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         console.error('Failed to sync person update to cloud:', error);
       }
     }
-
-    setLocalData(prev => ({
-      ...prev,
-      people: prev.people.map(p => p.id === id ? { ...p, ...updatedPerson } : p)
-    }));
   };
 
   const deletePerson = async (id: string) => {
     if (!user) return;
 
     setData(prev => ({
+      ...prev,
+      people: prev.people.filter(p => p.id !== id)
+    }));
+
+    setLocalData(prev => ({
       ...prev,
       people: prev.people.filter(p => p.id !== id)
     }));
@@ -322,11 +498,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         console.error('Failed to sync person deletion to cloud:', error);
       }
     }
-
-    setLocalData(prev => ({
-      ...prev,
-      people: prev.people.filter(p => p.id !== id)
-    }));
   };
 
   // Village entry operations
@@ -340,9 +511,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       villageEntries: [...prev.villageEntries, newEntry]
     }));
 
+    setLocalData(prev => ({
+      ...prev,
+      villageEntries: [...prev.villageEntries, newEntry]
+    }));
+
     if (!isOffline) {
       try {
-        await supabase.from('village_entries').insert({
+        const { error } = await supabase.from('village_entries').upsert({
           id: newEntry.id,
           user_id: user.id,
           person_id: entry.personId,
@@ -356,16 +532,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           e_fat_kg: entry.eFatKg,
           rate: entry.rate,
           amount: entry.amount
-        });
+        }, { onConflict: 'id' });
+        
+        if (error) {
+          console.error('Failed to sync village entry to cloud:', error);
+        }
       } catch (error) {
         console.error('Failed to sync village entry to cloud:', error);
       }
     }
-
-    setLocalData(prev => ({
-      ...prev,
-      villageEntries: [...prev.villageEntries, newEntry]
-    }));
   };
 
   const updateVillageEntry = async (id: string, updatedEntry: Partial<VillageEntry>) => {

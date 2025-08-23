@@ -9,6 +9,7 @@ interface DataContextType {
   isLoading: boolean;
   isOffline: boolean;
   syncStatus: 'idle' | 'syncing' | 'error';
+  lastSyncTime: Date | null; // Fixed: Missing from original interface
   addPerson: (person: Omit<Person, 'id'>) => Promise<void>;
   updatePerson: (id: string, person: Partial<Person>) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
@@ -25,6 +26,7 @@ interface DataContextType {
   updatePayment: (id: string, payment: Partial<Payment>) => Promise<void>;
   deletePayment: (id: string) => Promise<void>;
   syncData: () => Promise<void>;
+  clearLocalData: () => void; // Added utility function
 }
 
 const initialData: AppData = {
@@ -51,6 +53,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       loadData();
     } else {
       setData(initialData);
+      setLastSyncTime(null);
     }
   }, [user]);
 
@@ -66,18 +69,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       
       // Test connection with a simple query and proper timeout handling
       const connectionPromise = supabase
-        .from('users')
+        .from('people')
         .select('count')
         .limit(1);
       
-      const timeoutPromise = new Promise((_, reject) => {
+      const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Connection timeout')), 8000);
       });
       
-      const { error } = await Promise.race([connectionPromise, timeoutPromise]);
+      const result = await Promise.race([connectionPromise, timeoutPromise]);
       
-      if (error) {
-        console.log('❌ Supabase query failed:', error.message);
+      if (result.error) {
+        console.log('❌ Supabase query failed:', result.error.message);
         return false;
       }
 
@@ -110,20 +113,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         console.log('Loading data from Supabase for user:', user.id);
         
         // Check if this is the first time loading cloud data
-        const { data: existingPeople } = await supabase
+        const { data: existingPeople, error: countError } = await supabase
           .from('people')
-          .select('count')
+          .select('id', { count: 'exact' })
           .eq('user_id', user.id)
-          .single();
+          .limit(1);
         
-        const isFirstTimeSync = !existingPeople || existingPeople.count === 0;
+        const isFirstTimeSync = !countError && (!existingPeople || existingPeople.length === 0);
         
         // If first time and we have local data, upload it first
-        if (isFirstTimeSync && (localData.people.length > 0 || 
-            localData.villageEntries.length > 0 || 
-            localData.cityEntries.length > 0 || 
-            localData.dairyEntries.length > 0 || 
-            localData.payments.length > 0)) {
+        if (isFirstTimeSync && hasLocalData()) {
           console.log('🔄 First time sync - uploading local data to cloud...');
           await uploadLocalDataToCloud();
         }
@@ -225,9 +224,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to load data:', error);
       setData(localData);
       setIsOffline(true);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    setIsLoading(false);
+  // Helper function to check if we have local data worth syncing
+  const hasLocalData = (): boolean => {
+    return localData.people.length > 0 || 
+           localData.villageEntries.length > 0 || 
+           localData.cityEntries.length > 0 || 
+           localData.dairyEntries.length > 0 || 
+           localData.payments.length > 0;
   };
 
   const uploadLocalDataToCloud = async () => {
@@ -252,6 +260,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         
         if (peopleError) {
           console.error('Failed to upload people:', peopleError);
+          throw peopleError;
         } else {
           console.log(`✅ Uploaded ${peopleToUpload.length} people`);
         }
@@ -281,6 +290,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         
         if (villageError) {
           console.error('Failed to upload village entries:', villageError);
+          throw villageError;
         } else {
           console.log(`✅ Uploaded ${villageEntriesToUpload.length} village entries`);
         }
@@ -305,6 +315,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         
         if (cityError) {
           console.error('Failed to upload city entries:', cityError);
+          throw cityError;
         } else {
           console.log(`✅ Uploaded ${cityEntriesToUpload.length} city entries`);
         }
@@ -336,6 +347,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         
         if (dairyError) {
           console.error('Failed to upload dairy entries:', dairyError);
+          throw dairyError;
         } else {
           console.log(`✅ Uploaded ${dairyEntriesToUpload.length} dairy entries`);
         }
@@ -361,6 +373,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         
         if (paymentsError) {
           console.error('Failed to upload payments:', paymentsError);
+          throw paymentsError;
         } else {
           console.log(`✅ Uploaded ${paymentsToUpload.length} payments`);
         }
@@ -394,7 +407,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         // Then reload data from cloud
         await loadData();
         setSyncStatus('idle');
-        setLastSyncTime(new Date());
         console.log('Sync completed successfully');
       } else {
         console.log('Cannot sync - offline');
@@ -406,504 +418,345 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Person operations
-  const addPerson = async (person: Omit<Person, 'id'>) => {
+  // Utility function to clear local data
+  const clearLocalData = () => {
+    setLocalData(initialData);
+    setData(initialData);
+    console.log('Local data cleared');
+  };
+
+  // Generic function to handle local and cloud operations
+  const handleDataOperation = async <T>(
+    operation: 'add' | 'update' | 'delete',
+    table: keyof AppData,
+    supabaseTable: string,
+    localUpdate: (prev: AppData) => AppData,
+    cloudOperation?: () => Promise<any>
+  ) => {
     if (!user) return;
 
-    const newPerson = { ...person, id: generateId() };
-    
-    // Update local state immediately
-    setData(prev => ({
-      ...prev,
-      people: [...prev.people, newPerson]
-    }));
+    // Update local state and cache immediately
+    setData(localUpdate);
+    setLocalData(localUpdate);
 
-    // Update local cache first
-    setLocalData(prev => ({
-      ...prev,
-      people: [...prev.people, newPerson]
-    }));
-
-    if (!isOffline) {
+    // Sync to cloud if online
+    if (!isOffline && cloudOperation) {
       try {
-        const { error } = await supabase.from('people').upsert({
-          id: newPerson.id,
-          user_id: user.id,
-          name: person.name,
-          value: person.value,
-          category: person.category
-        }, { onConflict: 'id' });
-        
-        if (error) {
-          console.error('Failed to sync person to cloud:', error);
-        }
+        await cloudOperation();
       } catch (error) {
-        console.error('Failed to sync person to cloud:', error);
+        console.error(`Failed to sync ${operation} operation to cloud:`, error);
       }
     }
+  };
+
+  // Person operations
+  const addPerson = async (person: Omit<Person, 'id'>) => {
+    const newPerson = { ...person, id: generateId() };
+    
+    await handleDataOperation(
+      'add',
+      'people',
+      'people',
+      prev => ({ ...prev, people: [...prev.people, newPerson] }),
+      () => supabase.from('people').upsert({
+        id: newPerson.id,
+        user_id: user!.id,
+        name: person.name,
+        value: person.value,
+        category: person.category
+      }, { onConflict: 'id' })
+    );
   };
 
   const updatePerson = async (id: string, updatedPerson: Partial<Person>) => {
-    if (!user) return;
-
-    setData(prev => ({
-      ...prev,
-      people: prev.people.map(p => p.id === id ? { ...p, ...updatedPerson } : p)
-    }));
-
-    setLocalData(prev => ({
-      ...prev,
-      people: prev.people.map(p => p.id === id ? { ...p, ...updatedPerson } : p)
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase
-          .from('people')
-          .update({
-            name: updatedPerson.name,
-            value: updatedPerson.value,
-            category: updatedPerson.category,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', id)
-          .eq('user_id', user.id);
-      } catch (error) {
-        console.error('Failed to sync person update to cloud:', error);
-      }
-    }
+    await handleDataOperation(
+      'update',
+      'people',
+      'people',
+      prev => ({ ...prev, people: prev.people.map(p => p.id === id ? { ...p, ...updatedPerson } : p) }),
+      () => supabase
+        .from('people')
+        .update({
+          name: updatedPerson.name,
+          value: updatedPerson.value,
+          category: updatedPerson.category,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('user_id', user!.id)
+    );
   };
 
   const deletePerson = async (id: string) => {
-    if (!user) return;
-
-    setData(prev => ({
-      ...prev,
-      people: prev.people.filter(p => p.id !== id)
-    }));
-
-    setLocalData(prev => ({
-      ...prev,
-      people: prev.people.filter(p => p.id !== id)
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase
-          .from('people')
-          .delete()
-          .eq('id', id)
-          .eq('user_id', user.id);
-      } catch (error) {
-        console.error('Failed to sync person deletion to cloud:', error);
-      }
-    }
+    await handleDataOperation(
+      'delete',
+      'people',
+      'people',
+      prev => ({ ...prev, people: prev.people.filter(p => p.id !== id) }),
+      () => supabase
+        .from('people')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user!.id)
+    );
   };
 
   // Village entry operations
   const addVillageEntry = async (entry: Omit<VillageEntry, 'id'>) => {
-    if (!user) return;
-
     const newEntry = { ...entry, id: generateId() };
     
-    setData(prev => ({
-      ...prev,
-      villageEntries: [...prev.villageEntries, newEntry]
-    }));
-
-    setLocalData(prev => ({
-      ...prev,
-      villageEntries: [...prev.villageEntries, newEntry]
-    }));
-
-    if (!isOffline) {
-      try {
-        const { error } = await supabase.from('village_entries').upsert({
-          id: newEntry.id,
-          user_id: user.id,
-          person_id: entry.personId,
-          person_name: entry.personName,
-          date: entry.date,
-          m_milk: entry.mMilk,
-          m_fat: entry.mFat,
-          e_milk: entry.eMilk,
-          e_fat: entry.eFat,
-          m_fat_kg: entry.mFatKg,
-          e_fat_kg: entry.eFatKg,
-          rate: entry.rate,
-          amount: entry.amount
-        }, { onConflict: 'id' });
-        
-        if (error) {
-          console.error('Failed to sync village entry to cloud:', error);
-        }
-      } catch (error) {
-        console.error('Failed to sync village entry to cloud:', error);
-      }
-    }
+    await handleDataOperation(
+      'add',
+      'villageEntries',
+      'village_entries',
+      prev => ({ ...prev, villageEntries: [...prev.villageEntries, newEntry] }),
+      () => supabase.from('village_entries').upsert({
+        id: newEntry.id,
+        user_id: user!.id,
+        person_id: entry.personId,
+        person_name: entry.personName,
+        date: entry.date,
+        m_milk: entry.mMilk,
+        m_fat: entry.mFat,
+        e_milk: entry.eMilk,
+        e_fat: entry.eFat,
+        m_fat_kg: entry.mFatKg,
+        e_fat_kg: entry.eFatKg,
+        rate: entry.rate,
+        amount: entry.amount
+      }, { onConflict: 'id' })
+    );
   };
 
   const updateVillageEntry = async (id: string, updatedEntry: Partial<VillageEntry>) => {
-    if (!user) return;
-
-    setData(prev => ({
-      ...prev,
-      villageEntries: prev.villageEntries.map(e => e.id === id ? { ...e, ...updatedEntry } : e)
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase
-          .from('village_entries')
-          .update({
-            person_id: updatedEntry.personId,
-            person_name: updatedEntry.personName,
-            date: updatedEntry.date,
-            m_milk: updatedEntry.mMilk,
-            m_fat: updatedEntry.mFat,
-            e_milk: updatedEntry.eMilk,
-            e_fat: updatedEntry.eFat,
-            m_fat_kg: updatedEntry.mFatKg,
-            e_fat_kg: updatedEntry.eFatKg,
-            rate: updatedEntry.rate,
-            amount: updatedEntry.amount,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', id)
-          .eq('user_id', user.id);
-      } catch (error) {
-        console.error('Failed to sync village entry update to cloud:', error);
-      }
-    }
-
-    setLocalData(prev => ({
-      ...prev,
-      villageEntries: prev.villageEntries.map(e => e.id === id ? { ...e, ...updatedEntry } : e)
-    }));
+    await handleDataOperation(
+      'update',
+      'villageEntries',
+      'village_entries',
+      prev => ({ ...prev, villageEntries: prev.villageEntries.map(e => e.id === id ? { ...e, ...updatedEntry } : e) }),
+      () => supabase
+        .from('village_entries')
+        .update({
+          person_id: updatedEntry.personId,
+          person_name: updatedEntry.personName,
+          date: updatedEntry.date,
+          m_milk: updatedEntry.mMilk,
+          m_fat: updatedEntry.mFat,
+          e_milk: updatedEntry.eMilk,
+          e_fat: updatedEntry.eFat,
+          m_fat_kg: updatedEntry.mFatKg,
+          e_fat_kg: updatedEntry.eFatKg,
+          rate: updatedEntry.rate,
+          amount: updatedEntry.amount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('user_id', user!.id)
+    );
   };
 
   const deleteVillageEntry = async (id: string) => {
-    if (!user) return;
-
-    setData(prev => ({
-      ...prev,
-      villageEntries: prev.villageEntries.filter(e => e.id !== id)
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase
-          .from('village_entries')
-          .delete()
-          .eq('id', id)
-          .eq('user_id', user.id);
-      } catch (error) {
-        console.error('Failed to sync village entry deletion to cloud:', error);
-      }
-    }
-
-    setLocalData(prev => ({
-      ...prev,
-      villageEntries: prev.villageEntries.filter(e => e.id !== id)
-    }));
+    await handleDataOperation(
+      'delete',
+      'villageEntries',
+      'village_entries',
+      prev => ({ ...prev, villageEntries: prev.villageEntries.filter(e => e.id !== id) }),
+      () => supabase
+        .from('village_entries')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user!.id)
+    );
   };
 
   // City entry operations
   const addCityEntry = async (entry: Omit<CityEntry, 'id'>) => {
-    if (!user) return;
-
     const newEntry = { ...entry, id: generateId() };
     
-    setData(prev => ({
-      ...prev,
-      cityEntries: [...prev.cityEntries, newEntry]
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase.from('city_entries').insert({
-          id: newEntry.id,
-          user_id: user.id,
-          person_id: entry.personId,
-          person_name: entry.personName,
-          date: entry.date,
-          value: entry.value,
-          rate: entry.rate,
-          amount: entry.amount
-        });
-      } catch (error) {
-        console.error('Failed to sync city entry to cloud:', error);
-      }
-    }
-
-    setLocalData(prev => ({
-      ...prev,
-      cityEntries: [...prev.cityEntries, newEntry]
-    }));
+    await handleDataOperation(
+      'add',
+      'cityEntries',
+      'city_entries',
+      prev => ({ ...prev, cityEntries: [...prev.cityEntries, newEntry] }),
+      () => supabase.from('city_entries').upsert({
+        id: newEntry.id,
+        user_id: user!.id,
+        person_id: entry.personId,
+        person_name: entry.personName,
+        date: entry.date,
+        value: entry.value,
+        rate: entry.rate,
+        amount: entry.amount
+      }, { onConflict: 'id' })
+    );
   };
 
   const updateCityEntry = async (id: string, updatedEntry: Partial<CityEntry>) => {
-    if (!user) return;
-
-    setData(prev => ({
-      ...prev,
-      cityEntries: prev.cityEntries.map(e => e.id === id ? { ...e, ...updatedEntry } : e)
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase
-          .from('city_entries')
-          .update({
-            person_id: updatedEntry.personId,
-            person_name: updatedEntry.personName,
-            date: updatedEntry.date,
-            value: updatedEntry.value,
-            rate: updatedEntry.rate,
-            amount: updatedEntry.amount,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', id)
-          .eq('user_id', user.id);
-      } catch (error) {
-        console.error('Failed to sync city entry update to cloud:', error);
-      }
-    }
-
-    setLocalData(prev => ({
-      ...prev,
-      cityEntries: prev.cityEntries.map(e => e.id === id ? { ...e, ...updatedEntry } : e)
-    }));
+    await handleDataOperation(
+      'update',
+      'cityEntries',
+      'city_entries',
+      prev => ({ ...prev, cityEntries: prev.cityEntries.map(e => e.id === id ? { ...e, ...updatedEntry } : e) }),
+      () => supabase
+        .from('city_entries')
+        .update({
+          person_id: updatedEntry.personId,
+          person_name: updatedEntry.personName,
+          date: updatedEntry.date,
+          value: updatedEntry.value,
+          rate: updatedEntry.rate,
+          amount: updatedEntry.amount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('user_id', user!.id)
+    );
   };
 
   const deleteCityEntry = async (id: string) => {
-    if (!user) return;
-
-    setData(prev => ({
-      ...prev,
-      cityEntries: prev.cityEntries.filter(e => e.id !== id)
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase
-          .from('city_entries')
-          .delete()
-          .eq('id', id)
-          .eq('user_id', user.id);
-      } catch (error) {
-        console.error('Failed to sync city entry deletion to cloud:', error);
-      }
-    }
-
-    setLocalData(prev => ({
-      ...prev,
-      cityEntries: prev.cityEntries.filter(e => e.id !== id)
-    }));
+    await handleDataOperation(
+      'delete',
+      'cityEntries',
+      'city_entries',
+      prev => ({ ...prev, cityEntries: prev.cityEntries.filter(e => e.id !== id) }),
+      () => supabase
+        .from('city_entries')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user!.id)
+    );
   };
 
   // Dairy entry operations
   const addDairyEntry = async (entry: Omit<DairyEntry, 'id'>) => {
-    if (!user) return;
-
     const newEntry = { ...entry, id: generateId() };
     
-    setData(prev => ({
-      ...prev,
-      dairyEntries: [...prev.dairyEntries, newEntry]
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase.from('dairy_entries').insert({
-          id: newEntry.id,
-          user_id: user.id,
-          person_id: entry.personId,
-          person_name: entry.personName,
-          date: entry.date,
-          session: entry.session,
-          milk: entry.milk,
-          fat: entry.fat,
-          meter: entry.meter,
-          rate: entry.rate,
-          fat_kg: entry.fatKg,
-          meter_kg: entry.meterKg,
-          fat_amount: entry.fatAmount,
-          meter_amount: entry.meterAmount,
-          total_amount: entry.totalAmount
-        });
-      } catch (error) {
-        console.error('Failed to sync dairy entry to cloud:', error);
-      }
-    }
-
-    setLocalData(prev => ({
-      ...prev,
-      dairyEntries: [...prev.dairyEntries, newEntry]
-    }));
+    await handleDataOperation(
+      'add',
+      'dairyEntries',
+      'dairy_entries',
+      prev => ({ ...prev, dairyEntries: [...prev.dairyEntries, newEntry] }),
+      () => supabase.from('dairy_entries').upsert({
+        id: newEntry.id,
+        user_id: user!.id,
+        person_id: entry.personId,
+        person_name: entry.personName,
+        date: entry.date,
+        session: entry.session,
+        milk: entry.milk,
+        fat: entry.fat,
+        meter: entry.meter,
+        rate: entry.rate,
+        fat_kg: entry.fatKg,
+        meter_kg: entry.meterKg,
+        fat_amount: entry.fatAmount,
+        meter_amount: entry.meterAmount,
+        total_amount: entry.totalAmount
+      }, { onConflict: 'id' })
+    );
   };
 
   const updateDairyEntry = async (id: string, updatedEntry: Partial<DairyEntry>) => {
-    if (!user) return;
-
-    setData(prev => ({
-      ...prev,
-      dairyEntries: prev.dairyEntries.map(e => e.id === id ? { ...e, ...updatedEntry } : e)
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase
-          .from('dairy_entries')
-          .update({
-            person_id: updatedEntry.personId,
-            person_name: updatedEntry.personName,
-            date: updatedEntry.date,
-            session: updatedEntry.session,
-            milk: updatedEntry.milk,
-            fat: updatedEntry.fat,
-            meter: updatedEntry.meter,
-            rate: updatedEntry.rate,
-            fat_kg: updatedEntry.fatKg,
-            meter_kg: updatedEntry.meterKg,
-            fat_amount: updatedEntry.fatAmount,
-            meter_amount: updatedEntry.meterAmount,
-            total_amount: updatedEntry.totalAmount,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', id)
-          .eq('user_id', user.id);
-      } catch (error) {
-        console.error('Failed to sync dairy entry update to cloud:', error);
-      }
-    }
-
-    setLocalData(prev => ({
-      ...prev,
-      dairyEntries: prev.dairyEntries.map(e => e.id === id ? { ...e, ...updatedEntry } : e)
-    }));
+    await handleDataOperation(
+      'update',
+      'dairyEntries',
+      'dairy_entries',
+      prev => ({ ...prev, dairyEntries: prev.dairyEntries.map(e => e.id === id ? { ...e, ...updatedEntry } : e) }),
+      () => supabase
+        .from('dairy_entries')
+        .update({
+          person_id: updatedEntry.personId,
+          person_name: updatedEntry.personName,
+          date: updatedEntry.date,
+          session: updatedEntry.session,
+          milk: updatedEntry.milk,
+          fat: updatedEntry.fat,
+          meter: updatedEntry.meter,
+          rate: updatedEntry.rate,
+          fat_kg: updatedEntry.fatKg,
+          meter_kg: updatedEntry.meterKg,
+          fat_amount: updatedEntry.fatAmount,
+          meter_amount: updatedEntry.meterAmount,
+          total_amount: updatedEntry.totalAmount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('user_id', user!.id)
+    );
   };
 
   const deleteDairyEntry = async (id: string) => {
-    if (!user) return;
-
-    setData(prev => ({
-      ...prev,
-      dairyEntries: prev.dairyEntries.filter(e => e.id !== id)
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase
-          .from('dairy_entries')
-          .delete()
-          .eq('id', id)
-          .eq('user_id', user.id);
-      } catch (error) {
-        console.error('Failed to sync dairy entry deletion to cloud:', error);
-      }
-    }
-
-    setLocalData(prev => ({
-      ...prev,
-      dairyEntries: prev.dairyEntries.filter(e => e.id !== id)
-    }));
+    await handleDataOperation(
+      'delete',
+      'dairyEntries',
+      'dairy_entries',
+      prev => ({ ...prev, dairyEntries: prev.dairyEntries.filter(e => e.id !== id) }),
+      () => supabase
+        .from('dairy_entries')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user!.id)
+    );
   };
 
   // Payment operations
   const addPayment = async (payment: Omit<Payment, 'id'>) => {
-    if (!user) return;
-
     const newPayment = { ...payment, id: generateId() };
     
-    setData(prev => ({
-      ...prev,
-      payments: [...prev.payments, newPayment]
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase.from('payments').insert({
-          id: newPayment.id,
-          user_id: user.id,
-          person_id: payment.personId,
-          person_name: payment.personName,
-          date: payment.date,
-          amount: payment.amount,
-          comment: payment.comment,
-          type: payment.type,
-          category: payment.category
-        });
-      } catch (error) {
-        console.error('Failed to sync payment to cloud:', error);
-      }
-    }
-
-    setLocalData(prev => ({
-      ...prev,
-      payments: [...prev.payments, newPayment]
-    }));
+    await handleDataOperation(
+      'add',
+      'payments',
+      'payments',
+      prev => ({ ...prev, payments: [...prev.payments, newPayment] }),
+      () => supabase.from('payments').upsert({
+        id: newPayment.id,
+        user_id: user!.id,
+        person_id: payment.personId,
+        person_name: payment.personName,
+        date: payment.date,
+        amount: payment.amount,
+        comment: payment.comment,
+        type: payment.type,
+        category: payment.category
+      }, { onConflict: 'id' })
+    );
   };
 
   const updatePayment = async (id: string, updatedPayment: Partial<Payment>) => {
-    if (!user) return;
-
-    setData(prev => ({
-      ...prev,
-      payments: prev.payments.map(p => p.id === id ? { ...p, ...updatedPayment } : p)
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase
-          .from('payments')
-          .update({
-            person_id: updatedPayment.personId,
-            person_name: updatedPayment.personName,
-            date: updatedPayment.date,
-            amount: updatedPayment.amount,
-            comment: updatedPayment.comment,
-            type: updatedPayment.type,
-            category: updatedPayment.category,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', id)
-          .eq('user_id', user.id);
-      } catch (error) {
-        console.error('Failed to sync payment update to cloud:', error);
-      }
-    }
-
-    setLocalData(prev => ({
-      ...prev,
-      payments: prev.payments.map(p => p.id === id ? { ...p, ...updatedPayment } : p)
-    }));
+    await handleDataOperation(
+      'update',
+      'payments',
+      'payments',
+      prev => ({ ...prev, payments: prev.payments.map(p => p.id === id ? { ...p, ...updatedPayment } : p) }),
+      () => supabase
+        .from('payments')
+        .update({
+          person_id: updatedPayment.personId,
+          person_name: updatedPayment.personName,
+          date: updatedPayment.date,
+          amount: updatedPayment.amount,
+          comment: updatedPayment.comment,
+          type: updatedPayment.type,
+          category: updatedPayment.category,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('user_id', user!.id)
+    );
   };
 
   const deletePayment = async (id: string) => {
-    if (!user) return;
-
-    setData(prev => ({
-      ...prev,
-      payments: prev.payments.filter(p => p.id !== id)
-    }));
-
-    if (!isOffline) {
-      try {
-        await supabase
-          .from('payments')
-          .delete()
-          .eq('id', id)
-          .eq('user_id', user.id);
-      } catch (error) {
-        console.error('Failed to sync payment deletion to cloud:', error);
-      }
-    }
-
-    setLocalData(prev => ({
-      ...prev,
-      payments: prev.payments.filter(p => p.id !== id)
-    }));
+    await handleDataOperation(
+      'delete',
+      'payments',
+      'payments',
+      prev => ({ ...prev, payments: prev.payments.filter(p => p.id !== id) }),
+      () => supabase
+        .from('payments')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user!.id)
+    );
   };
 
   return (
@@ -928,7 +781,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       addPayment,
       updatePayment,
       deletePayment,
-      syncData
+      syncData,
+      clearLocalData
     }}>
       {children}
     </DataContext.Provider>

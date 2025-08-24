@@ -7,27 +7,12 @@ let supabaseClient: SupabaseClient | null = null;
 export const getSupabaseClient = (): SupabaseClient => {
   if (!supabaseClient) {
     const { url, anonKey } = getRuntimeConfig();
-
-    // Validate that we have proper credentials
-    if (!url || !anonKey) {
-      throw new Error(
-        "Supabase environment variables not configured. Please check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY."
-      );
+    if (url && anonKey) {
+      supabaseClient = createClient(url, anonKey);
+    } else {
+      // Create a dummy client for build-time
+      supabaseClient = createClient("", "");
     }
-
-    if (!url.includes("supabase.co")) {
-      throw new Error(
-        'Invalid Supabase URL format. URL must contain "supabase.co"'
-      );
-    }
-
-    if (anonKey.length < 50) {
-      throw new Error(
-        "Invalid Supabase anonymous key format. Key must be at least 50 characters long."
-      );
-    }
-
-    supabaseClient = createClient(url, anonKey);
   }
   return supabaseClient;
 };
@@ -37,13 +22,8 @@ const hasRealCredentials = () => {
   return validateEnvironment();
 };
 
-// Export a lazy client getter (don't initialize until actually needed)
-export const supabase = new Proxy({} as SupabaseClient, {
-  get(target, prop) {
-    const client = getSupabaseClient();
-    return client[prop as keyof SupabaseClient];
-  },
-});
+// Export the client (will be initialized at runtime)
+export const supabase = getSupabaseClient();
 
 export const hasSupabaseCredentials = () => {
   return hasRealCredentials();

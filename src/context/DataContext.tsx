@@ -144,7 +144,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // Check if this is the first time loading cloud data
       const { data: existingPeople, error: countError } = await supabase
-        .from("people")
+        .from("persons")
         .select("*")
         // .eq("user_id", user.id)
         .limit(1);
@@ -282,12 +282,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           id: person.id,
           user_id: user.id,
           name: person.name,
-          value: person?.value,
+          rate: person?.value,
           category: person.category,
         }));
 
         const { error: peopleError } = await supabase
-          .from("people")
+          .from("persons")
           .upsert(peopleToUpload, { onConflict: "id" });
 
         if (peopleError) {
@@ -470,7 +470,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
 
     const { data: newPerson, error } = await supabase
-      .from("people")
+      .from("persons")
       .insert({
         name: person.name,
         value: person?.value,

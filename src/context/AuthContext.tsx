@@ -101,6 +101,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
+        // If it's the default admin user and login fails, try to create it
+        if (email === "admin@m13.com" && password === "admin123" && error.message.includes("Invalid login credentials")) {
+          console.log("Default admin user not found in Supabase auth, creating...");
+          const registerResult = await register(email, password);
+          if (registerResult.success) {
+            return { success: true };
+          }
+          return { success: false, error: "Failed to create default admin user" };
+        }
         return { success: false, error: error.message };
       }
 

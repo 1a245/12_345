@@ -4,28 +4,9 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
-console.log("kamal", supabaseUrl, supabaseAnonKey);
-
-// Debug environment variables
-console.log("🔧 Environment Variables Check:");
-console.log(
-  "VITE_SUPABASE_URL:",
-  supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : "NOT SET"
-);
-console.log(
-  "VITE_SUPABASE_ANON_KEY:",
-  supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : "NOT SET"
-);
-
-// Check if we have real Supabase credentials
 const hasRealCredentials = () => {
   const hasUrl = !!supabaseUrl && supabaseUrl.includes("supabase.co");
   const hasKey = !!supabaseAnonKey && supabaseAnonKey.length > 50;
-
-  console.log("🔍 Credentials Check:");
-  console.log("Has URL:", hasUrl);
-  console.log("Has Key:", hasKey);
-  console.log("URL valid:", supabaseUrl.includes("supabase.co"));
 
   return hasUrl && hasKey;
 };

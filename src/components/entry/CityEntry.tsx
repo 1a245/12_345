@@ -10,7 +10,7 @@ export function CityEntry() {
   const [value, setValue] = useState('');
 
   const cityPeople = data.people.filter(p => p.category === 'city');
-  const selectedPerson = cityPeople.find(p => p.id === selectedPersonId);
+  const selectedPerson = cityPeople.find(p => p.id == selectedPersonId);
   
   const existingEntry = data.cityEntries.find(
     e => e.personId === selectedPersonId && e.date === selectedDate

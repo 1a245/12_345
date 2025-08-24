@@ -50,7 +50,6 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [data, setData] = useState<AppData>(initialData);
-  console.log("kamaldata", data.people);
   const [isLoading, setIsLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "error">(
@@ -478,7 +477,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       })
       .select();
 
-    console.log("kamalnewPerson", newPerson);
     if (error) {
       console.error("Failed to add person:", error);
       return;

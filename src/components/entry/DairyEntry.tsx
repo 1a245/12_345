@@ -15,7 +15,7 @@ export function DairyEntry() {
   });
 
   const dairyPeople = data.people.filter(p => p.category === 'dairy');
-  const selectedPerson = dairyPeople.find(p => p.id === selectedPersonId);
+  const selectedPerson = dairyPeople.find(p => p.id == selectedPersonId);
 
   const existingEntry = data.dairyEntries.find(
     e => e.personId === selectedPersonId && e.date === selectedDate && e.session === selectedSession

@@ -917,9 +917,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           type: payment.type,
           category: payment.category,
         });
-      } catch (error) {
-        console.error("Failed to sync payment to cloud:", error);
-      }
+      } catch (error: any) {
+  console.error("❌ Supabase insert failed:", {
+    message: error?.message ?? "Unknown error",
+    details: error?.details ?? null,
+    code: error?.code ?? null,
+  });
+}
     }
 
     setLocalData((prev) => ({

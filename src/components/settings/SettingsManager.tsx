@@ -1,30 +1,39 @@
-import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Settings as SettingsIcon, Shield } from 'lucide-react';
-import { useData } from '../../context/DataContext';
-import { Person } from '../../types';
-import { PasswordSettings } from './PasswordSettings';
+import  { useState } from "react";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Save,
+  X,
+  Settings as SettingsIcon,
+  Shield,
+} from "lucide-react";
+import { useData } from "../../context/DataContext";
+import { Person } from "../../types";
+import { PasswordSettings } from "./PasswordSettings";
 
 interface SettingsManagerProps {
-  category: 'village' | 'city' | 'dairy';
+  category: "village" | "city" | "dairy";
 }
 
 export function SettingsManager({ category }: SettingsManagerProps) {
   const { data, addPerson, updatePerson, deletePerson } = useData();
-  const [activeTab, setActiveTab] = useState<'people' | 'password'>('people');
+  const [activeTab, setActiveTab] = useState<"people" | "password">("people");
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', value: '' });
+  const [formData, setFormData] = useState({ name: "", value: "" });
 
-  const people = data.people.filter(p => p.category === category);
+  const people = data.people.filter((p) => p.category === category);
+  console.log("kamalpeople", people);
 
   const handleAdd = () => {
     if (formData.name.trim() && formData.value.trim()) {
       addPerson({
         name: formData.name.trim(),
         value: parseFloat(formData.value),
-        category
+        category,
       });
-      setFormData({ name: '', value: '' });
+      setFormData({ name: "", value: "" });
       setIsAdding(false);
     }
   };
@@ -38,17 +47,17 @@ export function SettingsManager({ category }: SettingsManagerProps) {
     if (editingId && formData.name.trim() && formData.value.trim()) {
       updatePerson(editingId, {
         name: formData.name.trim(),
-        value: parseFloat(formData.value)
+        value: parseFloat(formData.value),
       });
       setEditingId(null);
-      setFormData({ name: '', value: '' });
+      setFormData({ name: "", value: "" });
     }
   };
 
   const handleCancel = () => {
     setIsAdding(false);
     setEditingId(null);
-    setFormData({ name: '', value: '' });
+    setFormData({ name: "", value: "" });
   };
 
   return (
@@ -63,11 +72,11 @@ export function SettingsManager({ category }: SettingsManagerProps) {
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           <button
-            onClick={() => setActiveTab('people')}
+            onClick={() => setActiveTab("people")}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'people'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              activeTab === "people"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
           >
             <div className="flex items-center gap-2">
@@ -76,11 +85,11 @@ export function SettingsManager({ category }: SettingsManagerProps) {
             </div>
           </button>
           <button
-            onClick={() => setActiveTab('password')}
+            onClick={() => setActiveTab("password")}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'password'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              activeTab === "password"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
           >
             <div className="flex items-center gap-2">
@@ -92,7 +101,7 @@ export function SettingsManager({ category }: SettingsManagerProps) {
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'people' ? (
+      {activeTab === "people" ? (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">Manage People</h3>
@@ -115,7 +124,9 @@ export function SettingsManager({ category }: SettingsManagerProps) {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, name: e.target.value }))
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter name"
                   />
@@ -128,7 +139,12 @@ export function SettingsManager({ category }: SettingsManagerProps) {
                     type="number"
                     step="0.01"
                     value={formData.value}
-                    onChange={(e) => setFormData(prev => ({ ...prev, value: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        value: e.target.value,
+                      }))
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter value"
                   />
@@ -172,7 +188,10 @@ export function SettingsManager({ category }: SettingsManagerProps) {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {people.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
+                      <td
+                        colSpan={3}
+                        className="px-6 py-8 text-center text-gray-500"
+                      >
                         No records found. Click "Add New" to get started.
                       </td>
                     </tr>
@@ -183,7 +202,7 @@ export function SettingsManager({ category }: SettingsManagerProps) {
                           {person.name}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          {person.value.toFixed(2)}
+                          {person?.value.toFixed(2)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                           <button

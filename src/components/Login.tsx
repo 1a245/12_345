@@ -1,44 +1,44 @@
-import React, { useState } from 'react';
-import { Lock, Eye, EyeOff, Mail, UserPlus, Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import React, { useState } from "react";
+import { Lock, Eye, EyeOff, Mail, UserPlus, RefreshCw } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export function Login() {
   const [isRegister, setIsRegister] = useState(false);
-  const [email, setEmail] = useState('admin@m13.com');
-  const [password, setPassword] = useState('admin123');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [email, setEmail] = useState("admin@m13.com");
+  const [password, setPassword] = useState("admin123");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { login, register, isLoading: authLoading } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
 
     if (isRegister) {
       if (password !== confirmPassword) {
-        setError('Passwords do not match');
+        setError("Passwords do not match");
         setIsLoading(false);
         return;
       }
 
       if (password.length < 6) {
-        setError('Password must be at least 6 characters long');
+        setError("Password must be at least 6 characters long");
         setIsLoading(false);
         return;
       }
 
       const result = await register(email, password);
       if (!result.success) {
-        setError(result.error || 'Registration failed');
+        setError(result.error || "Registration failed");
       }
     } else {
       const result = await login(email, password);
       if (!result.success) {
-        setError(result.error || 'Login failed');
+        setError(result.error || "Login failed");
       }
     }
 
@@ -47,11 +47,11 @@ export function Login() {
 
   const toggleMode = () => {
     setIsRegister(!isRegister);
-    setError('');
-    setPassword('');
-    setConfirmPassword('');
+    setError("");
+    setPassword("");
+    setConfirmPassword("");
     if (!isRegister) {
-      setEmail('');
+      setEmail("");
     }
   };
 
@@ -75,13 +75,16 @@ export function Login() {
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">M13</h1>
           <p className="text-gray-600">
-            {isRegister ? 'Create your account' : 'Sign in to your account'}
+            {isRegister ? "Create your account" : "Sign in to your account"}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Email Address
             </label>
             <div className="relative">
@@ -99,12 +102,15 @@ export function Login() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Password
             </label>
             <div className="relative">
               <input
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -117,19 +123,26 @@ export function Login() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors"
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
               </button>
             </div>
           </div>
 
           {isRegister && (
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Confirm Password
               </label>
               <div className="relative">
                 <input
-                  type={showConfirmPassword ? 'text' : 'password'}
+                  type={showConfirmPassword ? "text" : "password"}
                   id="confirmPassword"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -142,7 +155,11 @@ export function Login() {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -167,7 +184,7 @@ export function Login() {
                 Create Account
               </>
             ) : (
-              'Sign In'
+              "Sign In"
             )}
           </button>
         </form>
@@ -177,17 +194,19 @@ export function Login() {
             onClick={toggleMode}
             className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
           >
-            {isRegister 
-              ? 'Already have an account? Sign in' 
-              : "Don't have an account? Create one"
-            }
+            {isRegister
+              ? "Already have an account? Sign in"
+              : "Don't have an account? Create one"}
           </button>
         </div>
 
         <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <h4 className="text-sm font-medium text-blue-900 mb-2">Getting Started:</h4>
+          <h4 className="text-sm font-medium text-blue-900 mb-2">
+            Getting Started:
+          </h4>
           <p className="text-sm text-blue-700">
-            Create your account to start managing your business data. All data is stored securely and syncs across your devices.
+            Create your account to start managing your business data. All data
+            is stored securely and syncs across your devices.
           </p>
         </div>
       </div>

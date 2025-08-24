@@ -9,16 +9,10 @@
 [secrets_scanning]
   enabled = true
   # Omit build output from secrets scanning since environment variables are handled safely
-  omit_paths = ["dist/**", "build/**", ".netlify/**"]
-  # Omit specific keys that are expected to be in the codebase but not in build output
+  omit_paths = ["dist/**", "build/**"]
+  # Omit specific keys that are expected to be in the codebase
   omit_keys = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"]
 
 # Environment variables (these should be set in Netlify dashboard, not here)
 # VITE_SUPABASE_URL = "your-supabase-url"
-# VITE_SUPABASE_ANON_KEY = "your-supabase-anon-key"
-
-# Redirects for SPA
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200 
+# VITE_SUPABASE_ANON_KEY = "your-supabase-anon-key" 

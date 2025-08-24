@@ -179,6 +179,11 @@ export function DeviceSync() {
           Enable Multi-Device Sync
         </button>
       )}
+
+      <SetupGuide 
+        isOpen={showSetupGuide} 
+        onClose={() => setShowSetupGuide(false)} 
+      />
     </div>
   );
 }

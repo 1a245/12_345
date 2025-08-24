@@ -1,4 +1,3 @@
-import { extractData } from '../utils/extractData';
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase, hasSupabaseCredentials } from "../lib/supabase";
 import { useAuth } from "./AuthContext";

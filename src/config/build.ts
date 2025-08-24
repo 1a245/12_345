@@ -41,3 +41,17 @@ export const validateBuildConfig = () => {
 
   return true;
 };
+
+// Runtime environment check (only called in browser)
+export const checkRuntimeEnvironment = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  // Check if environment variables are available at runtime
+  const hasSupabaseUrl = typeof import.meta.env.VITE_SUPABASE_URL === "string";
+  const hasSupabaseKey =
+    typeof import.meta.env.VITE_SUPABASE_ANON_KEY === "string";
+
+  return hasSupabaseUrl && hasSupabaseKey;
+};

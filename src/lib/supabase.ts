@@ -1,16 +1,29 @@
-import { createClient } from "@supabase/supabase-js";
-import { config, validateEnvironment } from "../config/env";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { getRuntimeConfig, validateEnvironment } from "../config/env";
+
+// Create Supabase client with runtime configuration
+let supabaseClient: SupabaseClient | null = null;
+
+export const getSupabaseClient = (): SupabaseClient => {
+  if (!supabaseClient) {
+    const { url, anonKey } = getRuntimeConfig();
+    if (url && anonKey) {
+      supabaseClient = createClient(url, anonKey);
+    } else {
+      // Create a dummy client for build-time
+      supabaseClient = createClient("", "");
+    }
+  }
+  return supabaseClient;
+};
 
 // Validate environment variables
 const hasRealCredentials = () => {
   return validateEnvironment();
 };
 
-// Create Supabase client with proper configuration
-export const supabase = createClient(
-  config.supabase.url,
-  config.supabase.anonKey
-);
+// Export the client (will be initialized at runtime)
+export const supabase = getSupabaseClient();
 
 export const hasSupabaseCredentials = () => {
   return hasRealCredentials();

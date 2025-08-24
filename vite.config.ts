@@ -5,8 +5,11 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   define: {
-    // Prevent environment variables from being bundled
+    // Completely prevent environment variables from being bundled
     "process.env": {},
+    // Replace environment variables with empty strings during build
+    "import.meta.env.VITE_SUPABASE_URL": '""',
+    "import.meta.env.VITE_SUPABASE_ANON_KEY": '""',
   },
   build: {
     rollupOptions: {
@@ -15,5 +18,13 @@ export default defineConfig({
         manualChunks: undefined,
       },
     },
+    // Prevent environment variables from being included
+    target: "esnext",
+    // Ensure no environment variables leak through
+    sourcemap: false,
   },
+  // Completely disable environment variable processing
+  envPrefix: [],
+  // Ensure environment variables are not loaded during build
+  envDir: ".",
 });

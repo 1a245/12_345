@@ -17,6 +17,11 @@ interface ConnectionInfo {
     dairyEntries: number;
     payments: number;
   };
+  environment: {
+    hasSupabaseUrl: boolean;
+    hasSupabaseKey: boolean;
+    isProduction: boolean;
+  };
 }
 
 export const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = false }) => {
@@ -45,6 +50,11 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = false }) => 
           cityEntries: dataContext.data?.cityEntries?.length || 0,
           dairyEntries: dataContext.data?.dairyEntries?.length || 0,
           payments: dataContext.data?.payments?.length || 0,
+        },
+        environment: {
+          hasSupabaseUrl: !!import.meta.env.VITE_SUPABASE_URL,
+          hasSupabaseKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+          isProduction: import.meta.env.PROD,
         }
       };
 

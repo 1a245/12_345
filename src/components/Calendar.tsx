@@ -86,7 +86,7 @@ export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
       <div className="grid grid-cols-7 gap-1">
         {days.map((day, index) => {
           if (day === null) {
-            return <div key={index} className="h-10" />;
+            return <div key={`empty-${index}`} className="h-10" />;
           }
 
           const dateString = formatDate(year, month, day);

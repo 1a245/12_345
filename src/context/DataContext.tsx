@@ -181,13 +181,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         result: PromiseSettledResult<any>,
         tableName: string
       ) => {
-        if (result.status === "fulfilled" && !result.value.error) {
+        if (result.status === "fulfilled" && result.value && !result.value.error) {
           return result.value.data || [];
         } else {
-          console.error(
-            `Failed to load ${tableName}:`,
-            result.status === "fulfilled" ? result.value.error : result.reason
-          );
+          const errorMessage = result.status === "fulfilled" 
+            ? (result.value?.error || 'Unknown error')
+            : (result.reason || 'Request failed');
+          console.error(`Failed to load ${tableName}:`, errorMessage);
           return [];
         }
       };

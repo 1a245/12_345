@@ -54,7 +54,8 @@ To enable data synchronization across multiple devices:
    VITE_SUPABASE_URL=https://your-project.supabase.co
    VITE_SUPABASE_ANON_KEY=your_anon_key_here
    ```
-5. **Restart Application**: The app will automatically detect the configuration and enable sync
+5. **Set Environment Variables in Netlify**: If deploying to Netlify, add these as environment variables in your site settings
+6. **Restart Application**: The app will automatically detect the configuration and enable sync
 
 ### How Multi-Device Sync Works
 
@@ -88,6 +89,22 @@ To enable data synchronization across multiple devices:
 4. **Track Payments**: Manage payments given and received
 5. **View Reports**: Generate detailed reports and ledgers
 6. **Multi-Device**: Access the same data from any device with your login
+
+## Environment Variables & Security
+
+### Important Security Notes
+
+- **Never commit `.env` files**: The `.env` file is already in `.gitignore`
+- **Use Netlify Environment Variables**: For production deployments, set environment variables in your hosting platform
+- **Secrets Scanning**: The build process is configured to prevent secrets from being exposed in build output
+- **Runtime Validation**: Environment variables are validated at runtime, not build time
+
+### Required Environment Variables
+
+```
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key_here
+```
 
 ## Project Structure
 

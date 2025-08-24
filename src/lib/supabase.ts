@@ -1,16 +1,18 @@
 import { createClient } from "@supabase/supabase-js";
-import { config, validateEnvironment } from "../config/env";
 
-// Validate environment variables
+// Get environment variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+
 const hasRealCredentials = () => {
-  return validateEnvironment();
+  const hasUrl = !!supabaseUrl && supabaseUrl.includes("supabase.co");
+  const hasKey = !!supabaseAnonKey && supabaseAnonKey.length > 50;
+
+  return hasUrl && hasKey;
 };
 
 // Create Supabase client with proper configuration
-export const supabase = createClient(
-  config.supabase.url,
-  config.supabase.anonKey
-);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export const hasSupabaseCredentials = () => {
   return hasRealCredentials();

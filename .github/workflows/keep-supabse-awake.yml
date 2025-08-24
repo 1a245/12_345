@@ -2,18 +2,12 @@ name: Keep Supabase Awake
 
 on:
   schedule:
-    - cron: "0 10 * * 1" # Every Monday at 10:00 UTC
+    - cron: '0 10 * * 1' # Every Monday at 10:00 UTC
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Supabase
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: |
-          if [ -n "$SUPABASE_URL" ]; then
-            curl "$SUPABASE_URL/ping"
-          else
-            echo "SUPABASE_URL not configured"
-          fi
+          curl https://svdupsbtuffsibshjzhm.supabase.co/ping

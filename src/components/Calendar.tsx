@@ -95,7 +95,7 @@ export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
 
           return (
             <button
-              key={day}
+              key={dateString}
               onClick={() => onDateSelect(dateString)}
               className={`h-10 text-sm rounded-lg transition-all ${
                 isSelected

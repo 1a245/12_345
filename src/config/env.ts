@@ -19,7 +19,11 @@ export const getRuntimeConfig = () => {
   const url = import.meta.env.VITE_SUPABASE_URL;
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  return { url: url || "", anonKey: anonKey || "" };
+  // Return empty strings if not available (will be handled by validation)
+  return {
+    url: typeof url === "string" ? url : "",
+    anonKey: typeof anonKey === "string" ? anonKey : "",
+  };
 };
 
 // Validate environment variables at runtime
@@ -42,4 +46,10 @@ export const validateEnvironment = () => {
   }
 
   return true;
+};
+
+// Check if environment is properly configured
+export const isEnvironmentConfigured = () => {
+  const { url, anonKey } = getRuntimeConfig();
+  return !!(url && anonKey);
 };

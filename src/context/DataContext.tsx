@@ -145,7 +145,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const { data: existingPeople, error: countError } = await supabase
         .from("persons")
         .select("*")
-        // .eq("user_id", user.id)
+        .eq("user_id", user.id)
         .limit(1);
 
       console.log("existingPeople", existingPeople);
@@ -169,7 +169,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // Load data from Supabase with error handling for each table
       const [peopleRes, villageRes, cityRes, dairyRes, paymentsRes] =
         await Promise.allSettled([
-          supabase.from("persons").select("*"),
+          supabase.from("persons").select("*").eq("user_id", user.id),
           supabase.from("village_entries").select("*").eq("user_id", user.id),
           supabase.from("city_entries").select("*").eq("user_id", user.id),
           supabase.from("dairy_entries").select("*").eq("user_id", user.id),
@@ -281,7 +281,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           id: person.id,
           user_id: user.id,
           name: person.name,
-          rate: person?.value,
+          value: person?.value,
           category: person.category,
         }));
 
@@ -471,6 +471,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const { data: newPerson, error } = await supabase
       .from("persons")
       .insert({
+        user_id: user.id,
         name: person.name,
         value: person?.value,
         category: person.category,
@@ -482,19 +483,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (newPerson) {
+    if (newPerson && newPerson.length > 0) {
+      const mappedPerson = {
+        id: newPerson[0].id,
+        name: newPerson[0].name,
+        value: newPerson[0].value,
+        category: newPerson[0].category,
+      };
+
       // Update local state immediately
       setData((prev) => ({
         ...prev,
-        people: [...newPerson, ...prev.people],
+        people: [mappedPerson, ...prev.people],
+      }));
+
+      // Update local cache
+      setLocalData((prev) => ({
+        ...prev,
+        people: [mappedPerson, ...prev.people],
       }));
     }
-
-    // // Update local cache first
-    // setLocalData((prev) => ({
-    //   ...prev,
-    //   people: [...prev.people, newPerson],
-    // }));
   };
 
   const updatePerson = async (id: string, updatedPerson: Partial<Person>) => {
@@ -517,7 +525,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!isOffline) {
       try {
         await supabase
-          .from("people")
+          .from("persons")
           .update({
             name: updatedPerson.name,
             value: updatedPerson.value,
@@ -548,7 +556,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!isOffline) {
       try {
         await supabase
-          .from("people")
+          .from("persons")
           .delete()
           .eq("id", id)
           .eq("user_id", user.id);

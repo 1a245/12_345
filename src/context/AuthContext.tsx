@@ -56,13 +56,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       try {
         // Test connection with proper timeout handling
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          setUser(session?.user ?? null);
-        });
+        const { data: { session }, error } = await supabase.auth.getSession();
 
-        console.log("✅ Supabase auth connection successful");
-        setOfflineMode(false);
-        // Check for existing session
+        if (error) {
+          console.log("❌ Auth error:", error.message);
+          setOfflineMode(true);
+          setUser(offlineUser);
+        } else if (session?.user) {
+          console.log("✅ Supabase auth connection successful");
+          setOfflineMode(false);
+          setUser({
+            id: session.user.id,
+            email: session.user.email || "",
+          });
+        } else {
+          console.log("ℹ️ No active session");
+          setOfflineMode(false);
+          setUser(null);
+        }
+
+        // Set up auth state listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          (_event, session) => {
+            (async () => {
+              if (session?.user) {
+                setUser({
+                  id: session.user.id,
+                  email: session.user.email || "",
+                });
+                setOfflineMode(false);
+              } else {
+                setUser(null);
+              }
+            })();
+          }
+        );
+
+        return () => {
+          subscription?.unsubscribe();
+        };
       } catch (fetchError: unknown) {
         const errorMessage =
           fetchError instanceof Error ? fetchError.message : String(fetchError);

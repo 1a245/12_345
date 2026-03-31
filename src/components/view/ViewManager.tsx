@@ -3,8 +3,8 @@ import { Filter, Download, Calendar, User, FileText, Calculator, Share2, FileDow
 import { useData } from '../../context/DataContext';
 import { LedgerView } from './LedgerView';
 import { ShareModal } from './ShareModal';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 interface ViewManagerProps {
   category: 'village' | 'city' | 'dairy';
@@ -123,11 +123,11 @@ export function ViewManager({ category }: ViewManagerProps) {
 
   const handlePDFDownload = () => {
     const doc = new jsPDF();
-    
+
     // Add title
     doc.setFontSize(20);
     doc.text(`${category.toUpperCase()} DATA REPORT`, 20, 20);
-    
+
     // Add filters info
     doc.setFontSize(12);
     const customerName = getSelectedPersonName().replace(/_/g, ' ');
@@ -179,8 +179,8 @@ export function ViewManager({ category }: ViewManagerProps) {
         break;
     }
 
-    // Add table
-    autoTable(doc, {
+    // Add table using autoTable
+    (doc as any).autoTable({
       head: [headers],
       body: rows,
       startY: 75,
@@ -192,16 +192,89 @@ export function ViewManager({ category }: ViewManagerProps) {
     doc.save(generateFileName('pdf'));
   };
 
+  const generatePDFBlob = (): Blob => {
+    const doc = new jsPDF();
+
+    // Add title
+    doc.setFontSize(20);
+    doc.text(`${category.toUpperCase()} DATA REPORT`, 20, 20);
+
+    // Add filters info
+    doc.setFontSize(12);
+    const customerName = getSelectedPersonName().replace(/_/g, ' ');
+    const dateRangeDisplay = `${startDate} to ${endDate}`;
+    doc.text(`Customer: ${customerName}`, 20, 35);
+    doc.text(`Date Range: ${dateRangeDisplay}`, 20, 45);
+    doc.text(`Total Entries: ${totalEntries}`, 20, 55);
+    doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`, 20, 65);
+
+    // Prepare table data
+    let headers: string[] = [];
+    let rows: any[][] = [];
+
+    switch (category) {
+      case 'village':
+        headers = ['Date', 'Person', 'M/Milk', 'M/Fat', 'E/Milk', 'E/Fat', 'Amount'];
+        rows = filteredData.map((entry: any) => [
+          entry.date,
+          entry.personName,
+          entry.mMilk.toFixed(2),
+          entry.mFat.toFixed(2),
+          entry.eMilk.toFixed(2),
+          entry.eFat.toFixed(2),
+          `₹${entry.amount.toFixed(2)}`
+        ]);
+        break;
+
+      case 'city':
+        headers = ['Date', 'Person', 'Value', 'Rate', 'Amount'];
+        rows = filteredData.map((entry: any) => [
+          entry.date,
+          entry.personName,
+          entry.value.toFixed(2),
+          entry.rate.toFixed(2),
+          `₹${entry.amount.toFixed(2)}`
+        ]);
+        break;
+
+      case 'dairy':
+        headers = ['Date', 'Person', 'Session', 'Milk', 'Fat', 'Total Amount'];
+        rows = filteredData.map((entry: any) => [
+          entry.date,
+          entry.personName,
+          entry.session,
+          entry.milk.toFixed(2),
+          entry.fat.toFixed(2),
+          `₹${entry.totalAmount.toFixed(2)}`
+        ]);
+        break;
+    }
+
+    // Add table using autoTable
+    (doc as any).autoTable({
+      head: [headers],
+      body: rows,
+      startY: 75,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 139, 202] },
+    });
+
+    // Return blob instead of saving
+    return doc.output('blob');
+  };
+
   const handleShare = () => {
     const customerName = getSelectedPersonName().replace(/_/g, ' ');
     const dateRangeDisplay = `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`;
     const deviceInfo = `Generated on ${new Date().toLocaleDateString()} from M13 Business Management`;
-    
+
     const shareData = {
       title: `${category.toUpperCase()} Data Report`,
       content: `Report for ${customerName}\nDate Range: ${dateRangeDisplay}\nTotal Entries: ${totalEntries}\nTotal Amount: ₹${totalAmount.toFixed(2)}\n\n${deviceInfo}`,
       fileName: generateFileName('csv'),
-      csvContent: generateCSV()
+      csvContent: generateCSV(),
+      pdfBlob: generatePDFBlob(),
+      pdfFileName: generateFileName('pdf')
     };
 
     setShowShareModal(true);

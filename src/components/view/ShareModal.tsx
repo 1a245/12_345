@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, MessageCircle, Send, Download, Copy, Share2 } from 'lucide-react';
+import { X, MessageCircle, Send, Download, Copy, Share2, FileText } from 'lucide-react';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -9,6 +9,8 @@ interface ShareModalProps {
     content: string;
     fileName: string;
     csvContent: string;
+    pdfBlob?: Blob;
+    pdfFileName?: string;
   };
 }
 
@@ -51,19 +53,43 @@ export function ShareModal({ isOpen, onClose, data }: ShareModalProps) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    onClose();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPDF = () => {
+    if (!data.pdfBlob || !data.pdfFileName) return;
+
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(data.pdfBlob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', data.pdfFileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleNativeShare = async () => {
     if (navigator.share) {
       try {
-        const blob = new Blob([data.csvContent], { type: 'text/csv;charset=utf-8;' });
-        const file = new File([blob], data.fileName, { type: 'text/csv' });
+        const files: File[] = [];
+
+        // Add CSV file
+        const csvBlob = new Blob([data.csvContent], { type: 'text/csv;charset=utf-8;' });
+        const csvFile = new File([csvBlob], data.fileName, { type: 'text/csv' });
+        files.push(csvFile);
+
+        // Add PDF file if available
+        if (data.pdfBlob && data.pdfFileName) {
+          const pdfFile = new File([data.pdfBlob], data.pdfFileName, { type: 'application/pdf' });
+          files.push(pdfFile);
+        }
 
         await navigator.share({
           title: data.title,
           text: data.content,
-          files: [file]
+          files: files
         });
         onClose();
       } catch (error) {
@@ -132,14 +158,24 @@ export function ShareModal({ isOpen, onClose, data }: ShareModalProps) {
             </button>
           </div>
 
-          <div className="pt-4 border-t border-gray-200">
+          <div className="pt-4 border-t border-gray-200 space-y-2">
             <button
               onClick={handleDownloadCSV}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Download className="w-4 h-4" />
               Download CSV File
             </button>
+
+            {data.pdfBlob && data.pdfFileName && (
+              <button
+                onClick={handleDownloadPDF}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                Download PDF File
+              </button>
+            )}
           </div>
         </div>
       </div>
